@@ -76,10 +76,10 @@ describe('sendSignal()', function () {
     const alice = new API({ base, userId: 'alice' })
     const bob = new API({ base, userId: 'bob' })
 
-    const fixture_offer = { type: 'offer', sdp: 'foo' }
-    const expected_offer = { ...fixture_offer, from: 'alice' }
-    const fixture_answer = { to: 'alice', type: 'answer', sdp: 'bar' }
-    const expected_answer = { ...fixture_answer, from: 'bob' }
+    const fixture_offer = { type: 'offer' }
+    const expected_offer = { type: 'offer', from: 'alice' }
+    const fixture_answer = { type: 'answer', to: 'alice' }
+    const expected_answer = { type: 'answer', from: 'bob', to: 'alice' }
 
     once(bob, 'signal', ({ detail: signal }) => {
       expect(signal).to.deep.equal(expected_offer)
@@ -101,10 +101,10 @@ describe('sendSignal()', function () {
     const bob = new API({ base, userId: 'bob' })
     let other
 
-    const fixture_offer = { type: 'offer', sdp: 'foo', ignore: ['bob'] }
-    const expected_offer = { type: 'offer', sdp: 'foo', from: 'alice' }
-    const fixture_answer = { to: 'alice', type: 'answer', sdp: 'bar' }
-    const expected_answer = { ...fixture_answer, from: 'other' }
+    const fixture_offer = { type: 'offer', ignore: ['bob'] }
+    const expected_offer = { type: 'offer', from: 'alice' }
+    const fixture_answer = { type: 'answer', to: 'alice' }
+    const expected_answer = { type: 'answer', from: 'other', to: 'alice' }
 
     once(alice, 'signal', ({ detail: signal }) => {
       expect(signal).to.deep.equal(expected_answer)
