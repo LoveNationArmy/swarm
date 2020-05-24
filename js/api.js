@@ -11,7 +11,10 @@ export default class API extends EventSource {
     fetch(this.url, {
       method: 'POST',
       mode: 'cors',
-      body: JSON.stringify({ from: this.userId, ...signal })
-    })
+      body: JSON.stringify({ ...signal, from: this.userId })
+    }).then(response => {
+      if (!response.ok) throw new Error(response.status)
+      else return response
+    }).catch(error => emit(this, 'error', error))
   }
 }

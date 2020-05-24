@@ -98,7 +98,17 @@ switch ($_SERVER['REQUEST_METHOD']) {
   case 'POST':
     $body = file_get_contents('php://input');
     $signal = json_decode($body, true);
-    $filename = $datadir . $signal['type'] . 's/' . ($signal['to'] ?? $signal['from']);
+    $type = $signal['type'];
+    if (!in_array($type, ['offer','answer'])) {
+      http_response_code(400); // Bad request
+      exit(1);
+    }
+    $id = $signal['to'] ?? $signal['from'];
+    if (!preg_match('/^[a-zA-Z0-9]+$/', $id)) {
+      http_response_code(400); // Bad request
+      exit(1);
+    }
+    $filename = $datadir . $type . 's/' . $id;
     file_put_contents($filename, $body);
     http_response_code(201); // Created
     echo PHP_EOL, PHP_EOL;

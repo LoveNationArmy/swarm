@@ -34,6 +34,41 @@ describe('validate user id', function () {
   })
 })
 
+describe('validate signal', function () {
+  this.timeout(5000)
+
+  it('bad "from"', done => {
+    const api = new API({ base, userId: 'normal' })
+    api.userId = '../malformed'
+    api.sendSignal({ type: 'offer' })
+    once(api, 'error', event => {
+      expect(event.detail.message).to.equal('400')
+      api.close()
+      done()
+    })
+  })
+
+  it('bad "to"', done => {
+    const api = new API({ base, userId: 'normal' })
+    api.sendSignal({ to: '../2123', type: 'offer' })
+    once(api, 'error', event => {
+      expect(event.detail.message).to.equal('400')
+      api.close()
+      done()
+    })
+  })
+
+  it('bad "type"', done => {
+    const api = new API({ base, userId: 'normal' })
+    api.sendSignal({ type: '../random' })
+    once(api, 'error', event => {
+      expect(event.detail.message).to.equal('400')
+      api.close()
+      setTimeout(done, 3000)
+    })
+  })
+})
+
 describe('sendSignal()', function () {
   this.timeout(20000)
 
