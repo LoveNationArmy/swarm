@@ -1,4 +1,4 @@
-export default class Message extends Object {
+export default class Message {
   static parse (message) {
     if (!message.length) {
       throw TypeError('Message.parse error: Message empty')
@@ -21,7 +21,6 @@ export default class Message extends Object {
   }
 
   constructor (obj) {
-    super()
     if (typeof obj === 'string') obj = Message.parse(obj)
     if (typeof obj === 'object') Object.assign(this, obj)
     else throw TypeError(`Message neither string or object: ${obj}`)
