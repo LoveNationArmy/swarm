@@ -132,6 +132,20 @@ describe('Message.serialize', function () {
     expect(string).to.deep.equal(expected)
   })
 
+  it('forgives missing fields adding necessary columns', () => {
+    const fixture = {
+      time: undefined,
+      id: '123',
+      to: undefined,
+      from: undefined,
+      type: 'type',
+      data: 'data'
+    }
+    const expected = '123:::type "data"'
+    const string = Message.serialize(fixture)
+    expect(string).to.deep.equal(expected)
+  })
+
   it('string object simply returns as is ', () => {
     const fixture = 'foo'
     const expected = 'foo'

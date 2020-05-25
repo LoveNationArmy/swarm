@@ -15,7 +15,7 @@ export default class Message extends Object {
   static serialize (message) {
     if (typeof message === 'string') return message
     const { time, id, to, from, type, data } = message
-    const meta = [time, id, to, from, type].filter(Boolean).join`:`
+    const meta = [time, id, to, from, type].join`:`.replace(/^:+/, '')
     const json = JSON.stringify(data)
     return [meta, json].join` `
   }
