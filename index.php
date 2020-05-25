@@ -73,7 +73,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         if (!isset($json['ignore']) || !in_array($user_id, $json['ignore'])) {
           unset($json['ignore']); // don't share ignore
           $data = json_encode($json);
-          echo 'event: data', PHP_EOL, 'data: ', $data, PHP_EOL, PHP_EOL;
+          echo 'data: ', $data, PHP_EOL, PHP_EOL;
           rewind($handle);
           ftruncate($handle, 0);
           flock($handle, LOCK_UN);
