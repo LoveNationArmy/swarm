@@ -1,5 +1,6 @@
 import { emit, on } from './lib/events.js'
 import randomId from './lib/random-id.js'
+import Message from './message.js'
 
 export default class Peer extends RTCPeerConnection {
   constructor (options = {
@@ -28,11 +29,21 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'icegatheringstatechange', () => {
       if (this.iceGatheringState === 'complete') {
-        emit(this, 'message', {
+        // this.channel.send({
+        //   channel: this.channel,
+        //   message: {
+        this.channel.send(new Message({
+          // channel: this.channel,
           id: this.id,
+          from: this.userId,
+          to: this.remoteUserId,
           ...this.localDescription.toJSON()
-        })
+        }))
       }
     })
+  }
+
+  toString () {
+    return `[${this.remoteUserId} ${this.id}]`
   }
 }

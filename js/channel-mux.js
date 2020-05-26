@@ -1,4 +1,5 @@
-import { once, proxy } from './lib/events.js'
+import { once, emit, on, off } from './lib/events.js'
+import Message from './message.js'
 
 export default class ChannelMux extends EventTarget {
   constructor () {
@@ -7,14 +8,22 @@ export default class ChannelMux extends EventTarget {
   }
 
   add (channel) {
-    proxy(channel, 'message', this)
+    const proxy = on(channel, 'message', message => {
+      emit(this, 'message', { channel, ...new Message(message) })
+    })
     once(channel, 'open', () => this.channels.add(channel))
-    once(channel, 'close', () => this.channels.delete(channel))
+    once(channel, 'close', () => {
+      this.channels.delete(channel)
+      off(proxy)
+    })
   }
 
-  send ({ channel, message }) {
-    for (const ch of this.channels) {
-      if (channel !== ch) ch.send({ channel, message })
+  send (message) {
+    // console.log('BROADCAST', message.toString())
+    for (const channel of this.channels) {
+      if (channel !== message.channel) {
+        channel.send(message)
+      }
     }
   }
 }

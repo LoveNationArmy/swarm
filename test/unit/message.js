@@ -30,13 +30,14 @@ describe('Message.parse', function () {
       to: 'to',
       from: 'from',
       type: 'type',
-      data: { foo: 'bar' }
+      foo: 'bar',
+      text: '{"foo":"bar"}'
     }
     const obj = Message.parse(fixture)
     expect(obj).to.deep.equal(expected)
   })
 
-  it('forgives data as string', () => {
+  it('text field with literal string', () => {
     const fixture = 'time:id:to:from:type non json string'
     const expected = {
       time: 'time',
@@ -44,7 +45,7 @@ describe('Message.parse', function () {
       to: 'to',
       from: 'from',
       type: 'type',
-      data: 'non json string'
+      text: 'non json string'
     }
     const obj = Message.parse(fixture)
     expect(obj).to.deep.equal(expected)
@@ -60,19 +61,19 @@ describe('Message.parse', function () {
       to: undefined,
       from: undefined,
       type: 'type',
-      data: 'data'
+      text: 'data'
     }
     obj = Message.parse(fixture)
     expect(obj).to.deep.equal(expected)
 
-    fixture = 'from:type data'
+    fixture = 'from:type text'
     expected = {
       time: undefined,
       id: undefined,
       to: undefined,
       from: 'from',
       type: 'type',
-      data: 'data'
+      text: 'text'
     }
     obj = Message.parse(fixture)
     expect(obj).to.deep.equal(expected)
@@ -86,7 +87,7 @@ describe('Message.parse', function () {
       to: undefined,
       from: undefined,
       type: 'foo',
-      data: undefined
+      text: undefined
     }
     const obj = Message.parse(fixture)
     expect(obj).to.deep.equal(expected)
@@ -102,7 +103,6 @@ describe('Message.parse', function () {
   })
 })
 
-
 describe('Message.serialize', function () {
   it('serializes a Message object', () => {
     const fixture = {
@@ -111,9 +111,38 @@ describe('Message.serialize', function () {
       to: 'to',
       from: 'from',
       type: 'type',
-      data: { foo: 'bar' }
+      foo: 'bar'
     }
     const expected = 'time:id:to:from:type {"foo":"bar"}'
+    const string = Message.serialize(fixture)
+    expect(string).to.deep.equal(expected)
+  })
+
+  it('reformats text properly', () => {
+    const fixture = {
+      time: undefined,
+      id: undefined,
+      to: undefined,
+      from: undefined,
+      type: 'type',
+      text: 'foo'
+    }
+    const expected = 'type foo'
+    const string = Message.serialize(fixture)
+    expect(string).to.deep.equal(expected)
+  })
+
+  it('data have precedence over text, discard text on serialize', () => {
+    const fixture = {
+      time: undefined,
+      id: undefined,
+      to: undefined,
+      from: undefined,
+      type: 'type',
+      text: 'foo',
+      other: 'data'
+    }
+    const expected = 'type {"other":"data"}'
     const string = Message.serialize(fixture)
     expect(string).to.deep.equal(expected)
   })
@@ -125,9 +154,8 @@ describe('Message.serialize', function () {
       to: undefined,
       from: undefined,
       type: 'type',
-      data: 'data'
     }
-    const expected = 'type "data"'
+    const expected = 'type'
     const string = Message.serialize(fixture)
     expect(string).to.deep.equal(expected)
   })
@@ -138,15 +166,14 @@ describe('Message.serialize', function () {
       id: '123',
       to: undefined,
       from: undefined,
-      type: 'type',
-      data: 'data'
+      type: 'type'
     }
-    const expected = '123:::type "data"'
+    const expected = '123:::type'
     const string = Message.serialize(fixture)
     expect(string).to.deep.equal(expected)
   })
 
-  it('string object simply returns as is ', () => {
+  it('string object simply returns as is', () => {
     const fixture = 'foo'
     const expected = 'foo'
     const string = Message.serialize(fixture)
@@ -163,7 +190,8 @@ describe('new Message(string)', function () {
       to: 'to',
       from: 'from',
       type: 'type',
-      data: { foo: 'bar' }
+      text: '{"foo":"bar"}',
+      foo: 'bar'
     }
     const obj = new Message(fixture)
     expect(obj).to.deep.equal(expected)
@@ -178,7 +206,7 @@ describe('message.toString()', function () {
       to: 'to',
       from: 'from',
       type: 'type',
-      data: { foo: 'bar' }
+      foo: 'bar'
     }
     const expected = 'time:id:to:from:type {"foo":"bar"}'
     const string = new Message(fixture).toString()

@@ -3,21 +3,26 @@ export default class Message {
     if (!message.length) {
       throw TypeError('Message.parse error: Message empty')
     }
-    try { message = JSON.parse(message) } catch (_) {}
-    const metaIndex = message.indexOf` `
-    let [type, from, to, id, time] = message.slice(0, metaIndex).split`:`.reverse()
-    let data = message.slice(metaIndex + 1)
-    if (metaIndex < 0) type = data, data = undefined
-    else try { data = JSON.parse(data) } catch (_) {}
-    return { time, id, to, from, type, data }
+    try { return JSON.parse(message) } catch (_) {}
+    // const metaIndex = message.indexOf` `
+    // let [type, from, to, id, time] = message.slice(0, metaIndex).split`:`.reverse()
+    // let text = message.slice(metaIndex + 1)
+    // let data = {}
+    // if (metaIndex < 0) type = text, text = undefined
+    // else try { data = JSON.parse(text) } catch (_) {}
+    // return { time, id, to, from, type, text, ...data }
   }
 
   static serialize (message) {
-    if (typeof message === 'string') return message
-    const { time, id, to, from, type, data } = message
-    const meta = [time, id, to, from, type].join`:`.replace(/^:+/, '')
-    const json = JSON.stringify(data)
-    return [meta, json].join` `
+    message = { ...message }
+    delete message.channel
+    return JSON.stringify(message)
+    // if (typeof message === 'string') return message
+    // const { time, id, to, from, type, text, ...data } = message
+    // const meta = [time, id, to, from, type].join`:`.replace(/^:+/, '')
+    // const rest = Object.keys(data).length
+    //   ? JSON.stringify(data) : text && text.length ? text : undefined
+    // return [meta, rest].filter(Boolean).join` `
   }
 
   constructor (obj) {
