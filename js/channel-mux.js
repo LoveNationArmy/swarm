@@ -61,6 +61,12 @@ export default class ChannelMux extends EventTarget {
         && message.path.find(id => id.split('.')[1] === 'datachannel')
         ) continue
 
+      if (!message.to && channel.channelId.split('.')[1] === 'peer'
+        && message.path[1] === this.channelId) continue
+
+      if (!message.to && channel.channelId.split('.')[1] === 'peer'
+        && (channel.connected || channel.channel.type)) continue
+
       if (!message.path.includes(channelId)) {
         // debug(this.channelId, 'sending', channel.channelId, message.type, message.to, message.path)
         const m = new Message({ ...message })
