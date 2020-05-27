@@ -1,9 +1,19 @@
+import randomId from './lib/random-id.js'
+import now from './lib/monotonic-timestamp.js'
+
 export default class Message {
   static parse (message) {
-    if (!message.length) {
-      throw TypeError('Message.parse error: Message empty')
+    if (typeof message === 'string') {
+      if (!message.length) {
+        throw TypeError('Message empty')
+      }
+      try { return JSON.parse(message) } catch (_) {}
     }
-    try { return JSON.parse(message) } catch (_) {}
+    if (typeof message === 'object') {
+      return message
+    }
+    throw TypeError(`Message of invalid type: ${message}`)
+
     // const metaIndex = message.indexOf` `
     // let [type, from, to, id, time] = message.slice(0, metaIndex).split`:`.reverse()
     // let text = message.slice(metaIndex + 1)
@@ -25,10 +35,12 @@ export default class Message {
     // return [meta, rest].filter(Boolean).join` `
   }
 
-  constructor (obj) {
-    if (typeof obj === 'string') obj = Message.parse(obj)
-    if (typeof obj === 'object') Object.assign(this, obj)
-    else throw TypeError(`Message neither string or object: ${obj}`)
+  constructor (message) {
+    Object.assign(this, {
+      id: randomId(),
+      time: now(),
+      ...Message.parse(message)
+    })
   }
 
   toString () {

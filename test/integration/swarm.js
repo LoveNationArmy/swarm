@@ -6,7 +6,7 @@ window.DEBUG = true
 const origin = 'http://localhost'
 
 describe('swarm.discover()', function () {
-  this.timeout(5000)
+  this.timeout(10000)
 
   let alice, bob, charlie
 
@@ -23,7 +23,7 @@ describe('swarm.discover()', function () {
         expect([...bob.connectedPeers][0].remoteUserId).to.equal(alice.userId)
         alice.http.close() // make alice only p2p
         emit(alice.http, 'close')
-        setTimeout(done, 1000)
+        done()
       }
     }
 
@@ -63,7 +63,7 @@ describe('swarm.discover()', function () {
         alice.destroy()
         bob.destroy()
         charlie.destroy()
-        setTimeout(done, 2000)
+        done()
       }
     }
 

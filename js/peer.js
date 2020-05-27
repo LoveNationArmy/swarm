@@ -12,7 +12,7 @@ export default class Peer extends RTCPeerConnection {
 
     super(options)
 
-    this.id = randomId()
+    this.peerId = randomId()
 
     on(this, 'negotiationneeded', async () => {
       this.setLocalDescription(await this.createOffer())
@@ -25,7 +25,7 @@ export default class Peer extends RTCPeerConnection {
         //   message: {
         emit(this, 'message', {
           // channel: this.channel,
-          id: this.id,
+          peerId: this.peerId,
           from: this.userId,
           to: this.remoteUserId,
           ...this.localDescription.toJSON()
@@ -36,7 +36,6 @@ export default class Peer extends RTCPeerConnection {
 
   async send (message) {
     // console.log(this.userId, 'receive', message.type, message.from)
-    if (this.userId === message.from) throw new Error()
     if (message.type === 'offer') {
       this.setRemoteDescription(message)
       this.setLocalDescription(await this.createAnswer())
@@ -46,6 +45,6 @@ export default class Peer extends RTCPeerConnection {
   }
 
   toString () {
-    return `[${this.remoteUserId} ${this.id}]`
+    return `[${this.remoteUserId} ${this.peerId}]`
   }
 }
