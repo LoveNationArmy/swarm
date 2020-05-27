@@ -20,7 +20,6 @@ export default class ChannelMux extends EventTarget {
       message.path.push(channel.channelId)
       message.path.push(this.channelId)
       // debug.color(message.id, '[mux recv <--]', message.meta)
-      // message.path.push(channel.channelId)
       emit(this, 'message', message)
     })
     if (open) {
@@ -47,18 +46,28 @@ export default class ChannelMux extends EventTarget {
       }
     }
     for (const [channelId, channel] of Object.entries(this.channels)) {
-      // if (message.path[0] !== channelId) {
 
+      // TODO: these are shortcuts, they are not necessary
+      // as the messages will not have any major effect later,
+      // maybe we can make it more implicit?
+      if (message.to && message.to.split('.')[1] === 'peer'
+      && !this.channels[message.to]
+      && (channel.channelId.split('.')[1] === 'peer'
+        || (channel.channelId.split('.')[1] === 'http'
+            && message.path.find(id => id.split('.')[1] === 'datachannel')))
+        ) continue
+
+      if (!message.to && channel.channelId.split('.')[1] === 'http'
+        && message.path.find(id => id.split('.')[1] === 'datachannel')
+        ) continue
 
       if (!message.path.includes(channelId)) {
-        // message.path.unshift(this.channelId)
         // debug(this.channelId, 'sending', channel.channelId, message.type, message.to, message.path)
         const m = new Message({ ...message })
         m.path = m.path.slice()
         m.path.push(channelId)
         channel.send(m)
       }
-      // }
     }
   }
 }
@@ -82,8 +91,6 @@ export class Channel extends EventTarget {
     const listener = on(channel, 'message', message => {
       message = new Message(message)
       if (message.id in this.data.in) return
-      // message.path.push(this.channelId)
-      // debug('[mux] RECV', this.userId, message.type, 'to', message.to, 'from', message.from, `[${message.id}]`)
       this.data.in[message.id] = message
       emit(this, 'message', message)
     })
