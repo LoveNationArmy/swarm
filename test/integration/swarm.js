@@ -7,6 +7,7 @@ const origin = 'http://localhost'
 
 describe('swarm.discover()', function () {
   this.timeout(10000)
+  this.bail(true)
 
   let alice, bob, charlie
 
@@ -19,10 +20,19 @@ describe('swarm.discover()', function () {
       if (!--count) { // alice and bob discover over http
         debug(alice.print())
         debug(bob.print())
-        expect([...alice.connectedPeers][0].remoteUserId).to.equal(bob.userId)
-        expect([...bob.connectedPeers][0].remoteUserId).to.equal(alice.userId)
+
+        expect(alice.connectedPeers.length).to.equal(1) // alice connected to bob
+        expect(bob.connectedPeers.length).to.equal(1) // bob connected to alice
+
+        expect(alice.connectedPeers[0].channel.remotePeerMessage.userId).to.equal(bob.userId)
+        expect(bob.connectedPeers[0].channel.remotePeerMessage.userId).to.equal(alice.userId)
+
+        // TODO: test offer,answer
+
+        // debug('here', bob.connectedPeers[0].channelId, alice.connectedPeers[0].channelId)
+        // expect(bob.connectedPeers[0].channelId).to.equal(alice.connectedPeers[0].channelId)
+
         alice.http.close() // make alice only p2p
-        emit(alice.http, 'close')
         done()
       }
     }
@@ -40,9 +50,9 @@ describe('swarm.discover()', function () {
     let count = 2
     const maybeDone = () => {
       if (!--count) { // charlie and bob discover over http
-        expect(alice.connectedPeers.size).to.equal(1) // alice connected to bob
-        expect(charlie.connectedPeers.size).to.equal(1) // charlie connected to alice
-        expect(bob.connectedPeers.size).to.equal(2) // bob connected to both alice and charlie
+        expect(alice.connectedPeers.length).to.equal(1) // alice connected to bob
+        expect(charlie.connectedPeers.length).to.equal(1) // charlie connected to alice
+        expect(bob.connectedPeers.length).to.equal(2) // bob connected to both alice and charlie
         done()
       }
     }
@@ -67,7 +77,7 @@ describe('swarm.discover()', function () {
       }
     }
 
-    charlie.discover(alice.userId)
+    charlie.discover()
 
     once(charlie, 'peer', maybeDone)
     once(alice, 'peer', maybeDone)

@@ -4,6 +4,7 @@ export default class HttpChannel extends EventSource {
   constructor (url) {
     super(url)
     this.isHttp = true
+    this.channelId = 'http'
   }
 
   send (message) {

@@ -43,6 +43,18 @@ export default class Message {
     })
   }
 
+  get meta () {
+    return `${this.type} ${this.to ? this.to : '(to any)'} [${this.path.join` -> `}]`
+  }
+
+  get originId () {
+    return this.path[0]
+  }
+
+  get userId () {
+    return this.path[1]
+  }
+
   toString () {
     return Message.serialize(this)
   }
