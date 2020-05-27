@@ -17,6 +17,7 @@ export default class Swarm extends EventTarget {
     this.peers = new Set()
     this.http = new HttpChannel(`${this.origin}/?user_id=${this.userId}`)
     this.mux = new ChannelMux()
+    this.mux.userId = this.userId
     this.mux.add(this.http)
     this.format = this.format.bind(this)
 
@@ -24,7 +25,7 @@ export default class Swarm extends EventTarget {
       message = new Message(message)
 
       // if (message.type === 'gossip') { // unwrap gossip
-      //   message = new Message(message.text)
+      //   message = new Message(message.data)
       // }
 
       const { to, type } = message
@@ -42,7 +43,123 @@ export default class Swarm extends EventTarget {
       if (options.handler && options.handler(message) === false) return
 
       // if we reach here and it's not me, it's gossip
-      if (to !== this.userId) this.mux.send(message) //: this.format({ type: 'gossip', text: `${message}` })})
+      if (to !== this.userId)
+        this.mux.send(message) //: this.format({ type: 'gossip', text: `${message}` })})
+    })
+  }
+
+  handler (message) {
+// console.log(this.userId, 'receive', message)
+    const { channel, time, id, to, from, type, ...data } = message
+// if (from === this.userId) return
+if (channel.userId === this.userId) return
+    switch (type) {
+      case 'offer':
+        if ((!to && from !== this.userId) || to === this.userId) { // no "to", assume offer is from private channel
+          // discard negotiation if already negotiating (or connected) with peer
+          // TODO: this terminates early so the remote stays with hanged peers
+          // maybe we can republish on the incoming channel or p2p ?
+          if (this.maybeDiscardNegotiation(message)) return false
+          debug(this.userId, 'receive offer from', from, [id])
+          const peer = new Peer()
+          peer.id = id // set local peer id to match remote's so they can match
+          peer.userId = this.userId
+          peer.remoteUserId = from // match peer with remote user id
+          // peer.channel = channel
+          // send first message over originating channel back to the initiator
+          // pipe(peer, 'message', channel, message => ({ channel, message: this.format({ from: this.userId, to: from, ...message }) }), { once: true })
+          // once(peer, 'message', message => channel.send(this.format(message)))
+          once(peer, 'datachannel', channel => {
+            channel.isData = true
+            // if (this.maybeDropPeer(peer)) return
+            debug(this.userId, 'connected', peer.remoteUserId, '(via offer)', [peer.id])
+            this.mux.add(channel)
+            peer.connected = true
+            // peer.channel = channel
+            // on(peer, 'message', message => emit(channel, 'message', message))
+            // pipe(peer, 'message', this.mux, message => ({ channel, message: this.format(message) })) // pipe rest of internal peer messages over mux
+            emit(this, 'peer', peer) // emit new peer for external observers
+          })
+          once(peer, 'close', () => this.peers.delete(peer))
+          // emit(peer, 'offer', message)
+          this.mux.add(peer, true)
+          this.peers.add(peer)
+          peer.send(message)
+          return false // prevent further handling
+        } else if (to && from === this.userId) {
+          if (this.maybeDiscardNegotiation(message)) return false
+          const peer = findBy('id', this.peers, id)
+          if (channel !== peer) {
+            peer.send(message)
+            return false
+          }
+        }
+        break
+
+      case 'answer':
+        if (to === this.userId) {
+          // discard negotiation if already negotiating (or connected) with peer
+          // TODO: this terminates early so the remote stays with hanged peers
+          // maybe we can republish on the incoming channel or p2p ?
+          if (this.maybeDiscardNegotiation(message)) return false
+          debug(this.userId, 'receive answer from', from, [id])
+          const peer = findBy('id', this.peers, id)
+          if (peer) {
+            peer.remoteUserId = from
+            peer.send(message)
+            return false // prevent further handling
+          }
+        } else if (from === this.userId) {
+          if (this.maybeDiscardNegotiation(message)) return false
+          // return false
+          const peer = findBy('id', this.peers, id)
+          if (channel !== peer) {
+            peer.send(message)
+            return false
+          }
+
+        }
+        break
+    }
+  }
+
+  discover (to) {
+    const peer = new Peer()
+    peer.userId = this.userId
+    if (to) {
+      peer.remoteUserId = to
+      // peer.channel = this.mux
+      // once(peer, 'message', message => this.mux.send({ message: this.format(message) })) //message => ({ channel, message: this.format({ to, ...message }) }), { once: true })
+    } else {
+      // peer.channel = this.http
+      // once(peer, 'message', message => this.http.send(this.format(message)))
+    }
+    const channel = peer.createDataChannel('data')
+    channel.isData = true
+    once(channel, 'open', () => {
+      // if (this.maybeDropPeer(peer)) return
+      debug(this.userId, 'connected', peer.remoteUserId, '(via answer)', [peer.id])
+      peer.connected = true
+      // if (!to) {
+      // peer.channel = channel
+      // on(peer, 'message', message => emit(channel, 'message', message))
+
+      // pipe(peer, 'message', this.mux, message => ({ channel, message: this.format(message) })) // pipe rest of internal peer messages over mux
+      // }
+      emit(this, 'peer', peer) // emit new peer for external observers
+    })
+    once(peer, 'close', () => this.peers.delete(peer))
+    this.mux.add(channel)
+    this.mux.add(peer, true)
+    this.peers.add(peer)
+  }
+
+  format (message) {
+    return new Message({
+      time: now(),
+      id: randomId(),
+      from: this.userId,
+      ...message
     })
   }
 
@@ -62,99 +179,6 @@ export default class Swarm extends EventTarget {
       debug(this.userId, 'discarding', type, 'from', from, [id], 'already negotiating', [peer.id])
       return true
     }
-  }
-
-  discover (to) {
-    const peer = new Peer()
-    peer.userId = this.userId
-    if (to) {
-      peer.remoteUserId = to
-      peer.channel = this.mux
-      // once(peer, 'message', message => this.mux.send({ message: this.format(message) })) //message => ({ channel, message: this.format({ to, ...message }) }), { once: true })
-    } else {
-      peer.channel = this.http
-      // once(peer, 'message', message => this.http.send(this.format(message)))
-    }
-    const channel = peer.createDataChannel('data')
-    once(channel, 'open', () => {
-      // if (this.maybeDropPeer(peer)) return
-      debug(this.userId, 'connected', peer.remoteUserId, '(via answer)', [peer.id])
-      peer.connected = true
-      // if (!to) {
-      peer.channel = channel
-      // on(peer, 'message', message => emit(channel, 'message', message))
-
-      // pipe(peer, 'message', this.mux, message => ({ channel, message: this.format(message) })) // pipe rest of internal peer messages over mux
-      // }
-      emit(this, 'peer', peer) // emit new peer for external observers
-    })
-    once(peer, 'close', () => this.peers.delete(peer))
-    this.mux.add(channel)
-    this.peers.add(peer)
-  }
-
-  handler (message) {
-// console.log(this.userId, 'receive', message)
-    const { channel, time, id, to, from, type, ...data } = message
-// if (from === this.userId) return
-    switch (type) {
-      case 'offer':
-        if (!to || to === this.userId) { // no "to", assume offer is from private channel
-          // discard negotiation if already negotiating (or connected) with peer
-          // TODO: this terminates early so the remote stays with hanged peers
-          // maybe we can republish on the incoming channel or p2p ?
-          if (this.maybeDiscardNegotiation(message)) return false
-          debug(this.userId, 'receive offer from', from, [id])
-          const peer = new Peer()
-          peer.id = id // set local peer id to match remote's so they can match
-          peer.userId = this.userId
-          peer.remoteUserId = from // match peer with remote user id
-          peer.channel = channel
-          // send first message over originating channel back to the initiator
-          // pipe(peer, 'message', channel, message => ({ channel, message: this.format({ from: this.userId, to: from, ...message }) }), { once: true })
-          // once(peer, 'message', message => channel.send(this.format(message)))
-          once(peer, 'datachannel', channel => {
-            // if (this.maybeDropPeer(peer)) return
-            debug(this.userId, 'connected', peer.remoteUserId, '(via offer)', [peer.id])
-            this.mux.add(channel)
-            peer.connected = true
-            peer.channel = channel
-            // on(peer, 'message', message => emit(channel, 'message', message))
-            // pipe(peer, 'message', this.mux, message => ({ channel, message: this.format(message) })) // pipe rest of internal peer messages over mux
-            emit(this, 'peer', peer) // emit new peer for external observers
-          })
-          once(peer, 'close', () => this.peers.delete(peer))
-          emit(peer, 'offer', message)
-          this.peers.add(peer)
-          return false // prevent further handling
-        }
-        break
-
-      case 'answer':
-        if (to === this.userId) {
-          // discard negotiation if already negotiating (or connected) with peer
-          // TODO: this terminates early so the remote stays with hanged peers
-          // maybe we can republish on the incoming channel or p2p ?
-          if (this.maybeDiscardNegotiation(message)) return false
-          debug(this.userId, 'receive answer from', from, [id])
-          const peer = findBy('id', this.peers, id)
-          if (peer) {
-            peer.remoteUserId = from
-            emit(peer, 'answer', message)
-            return false // prevent further handling
-          }
-        }
-        break
-    }
-  }
-
-  format (message) {
-    return new Message({
-      time: now(),
-      id: randomId(),
-      from: this.userId,
-      ...message
-    })
   }
 
   print (all = false) {

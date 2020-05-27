@@ -18,29 +18,31 @@ export default class Peer extends RTCPeerConnection {
       this.setLocalDescription(await this.createOffer())
     })
 
-    on(this, 'offer', async (message) => {
-      this.setRemoteDescription(message)
-      this.setLocalDescription(await this.createAnswer())
-    })
-
-    on(this, 'answer', message => {
-      this.setRemoteDescription(message)
-    })
-
     on(this, 'icegatheringstatechange', () => {
       if (this.iceGatheringState === 'complete') {
         // this.channel.send({
         //   channel: this.channel,
         //   message: {
-        this.channel.send(new Message({
+        emit(this, 'message', {
           // channel: this.channel,
           id: this.id,
           from: this.userId,
           to: this.remoteUserId,
           ...this.localDescription.toJSON()
-        }))
+        })
       }
     })
+  }
+
+  async send (message) {
+    // console.log(this.userId, 'receive', message.type, message.from)
+    if (this.userId === message.from) throw new Error()
+    if (message.type === 'offer') {
+      this.setRemoteDescription(message)
+      this.setLocalDescription(await this.createAnswer())
+    } else if (message.type === 'answer') {
+      this.setRemoteDescription(message)
+    }
   }
 
   toString () {
