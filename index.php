@@ -70,7 +70,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
       if ($handle) {
         $contents = fread($handle, $size);
         $json = json_decode($contents, true);
-        if (isset($json['id']) && (!isset($json['ignore']) || !in_array($user_id, $json['ignore']))) {
+        if (isset($json['from']) && (!isset($json['ignore']) || !in_array($user_id, $json['ignore']))) {
           unset($json['ignore']); // don't share ignore
           $data = json_encode($json);
           echo 'data: ', $data, PHP_EOL, PHP_EOL;

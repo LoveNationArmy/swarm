@@ -40,7 +40,7 @@ describe('validate message', function () {
 
   it('bad "from"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ type: 'offer', from: '../malformed' })
+    http.send(JSON.stringify({ type: 'offer', from: '../malformed' }))
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -50,7 +50,7 @@ describe('validate message', function () {
 
   it('bad "to"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ to: '../2123', type: 'offer', from: 'normal' })
+    http.send(JSON.stringify({ to: '../2123', type: 'offer', from: 'normal' }))
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -60,7 +60,7 @@ describe('validate message', function () {
 
   it('bad "type"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ type: '../random', from: 'normal' })
+    http.send(JSON.stringify({ type: '../random', from: 'normal' }))
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -83,7 +83,7 @@ describe('send()', function () {
 
     once(bob, 'message', message => {
       expect(JSON.parse(message)).to.deep.equal(expected_offer)
-      bob.send(fixture_answer)
+      bob.send(JSON.stringify(fixture_answer))
     })
 
     once(alice, 'message', message => {
@@ -93,7 +93,7 @@ describe('send()', function () {
       setTimeout(done, 2000)
     })
 
-    alice.send(fixture_offer)
+    alice.send(JSON.stringify(fixture_offer))
   })
 
   it('prevent exchange with ignore', done => {
@@ -114,13 +114,13 @@ describe('send()', function () {
       setTimeout(done, 2000)
     })
 
-    alice.send(fixture_offer)
+    alice.send(JSON.stringify(fixture_offer))
 
     setTimeout(() => {
       other = new HttpChannel(url('other'))
       once(other, 'message', message => {
         expect(JSON.parse(message)).to.deep.equal(expected_offer)
-        other.send(fixture_answer)
+        other.send(JSON.stringify(fixture_answer))
       })
     }, 500)
   })

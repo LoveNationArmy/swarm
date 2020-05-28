@@ -37,8 +37,8 @@ describe('swarm.discover()', function () {
           .to.equal(opposite[bob.connectedPeers[0].localDescription.type])
 
         alice.http.close() // make alice only p2p
-done()
-        // setTimeout(done, 2000) // wait or alice might steal offer
+
+        setTimeout(done, 2000) // wait or alice might steal offer
       }
     }
 
@@ -99,7 +99,7 @@ done()
       }
     }
 
-    charlie.discover()
+    charlie.discover(charlie)
 
     once(charlie, 'peer', next)
     once(alice, 'peer', next)

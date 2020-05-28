@@ -4,7 +4,6 @@ import randomId from './lib/random-id.js'
 import Peer from './peer.js'
 import Message from './message.js'
 import HttpChannel from './http-channel.js'
-import ChannelMux from './channel-mux.js'
 
 export default class Swarm extends EventTarget {
   constructor (opts = {}) {
@@ -29,15 +28,7 @@ export default class Swarm extends EventTarget {
       if (!emit(this, message.type, message)) return // exit if message handled
 
       // gossip
-      const json = JSON.stringify(message)
-      for (const channel of this.channels) {
-        if (channel !== message.channel) {
-          if (channel.data.in.has(message.id)) continue
-          if (channel.data.out.has(message.id)) continue
-          channel.data.out.add(message.id)
-          channel.send(json)
-        }
-      }
+      this.send(message)
     })
 
     on(this, 'offer', (message, event) => {
@@ -48,22 +39,14 @@ export default class Swarm extends EventTarget {
       const peer = new Peer()
       this.peers.push(peer)
       peer.id = message.id + '.' + this.userId
-      once(peer, 'localdescription', desc => message.channel.send(JSON.stringify({
+      once(peer, 'localdescription', desc => message.channel.send(new Message({
         from: this.userId,
         to: message.from,
         id: peer.id,
         ...desc
       })))
       once(peer, 'connected', () => emit(this, 'peer', peer))
-      once(peer, 'datachannel', channel => {
-        channel.peer = peer
-        channel.data = { in: new Set, out: new Set }
-        on(channel, 'message', message => {
-          emit(this, 'message', { ...JSON.parse(message), channel })
-        })
-        once(channel, 'open', () => this.channels.add(channel))
-        once(channel, 'close', () => this.channels.delete(channel))
-      })
+      once(peer, 'datachannel', channel => this.createChannel(peer, channel))
       peer.setRemoteDescription(message)
     })
 
@@ -79,34 +62,49 @@ export default class Swarm extends EventTarget {
       peer.setRemoteDescription(message)
     })
 
-    on(this.http, 'message', message => emit(this, 'message', {
-      ...JSON.parse(message),
+    on(this.http, 'message', message => emit(this, 'message', new Message({
+      ...Message.parse(message),
       channel: this.http
-    }))
+    })))
 
     on(this, 'peer', peer => {
       once(peer, 'close', () => this.peers.splice(this.peers.indexOf(peer), 1))
     })
   }
 
-  discover () {
+  createChannel (peer, channel = peer.createDataChannel('data')) {
+    channel.peer = peer
+    channel.data = { in: new Set, out: new Set }
+    on(channel, 'message', message => {
+      emit(this, 'message', new Message({ ...Message.parse(message), channel }))
+    })
+    once(channel, 'open', () => this.channels.add(channel))
+    once(channel, 'close', () => this.channels.delete(channel))
+  }
+
+  send (message) {
+    message = new Message(message)
+    for (const channel of this.channels) {
+      if (channel !== message.channel) {
+        if (channel.data.in.has(message.id)) continue
+        if (channel.data.out.has(message.id)) continue
+        channel.data.out.add(message.id)
+        channel.send(message)
+      }
+    }
+  }
+
+  discover (channel = this.http) {
     const peer = new Peer()
     this.peers.push(peer)
     peer.id = peer.id + '.' + this.userId
-    once(peer, 'localdescription', desc => this.http.send(JSON.stringify({
+    once(peer, 'localdescription', desc => channel.send(new Message({
       from: this.userId,
       id: peer.id,
       ...desc
     })))
     once(peer, 'connected', () => emit(this, 'peer', peer))
-    const channel = peer.createDataChannel('data')
-    channel.peer = peer
-    channel.data = { in: new Set, out: new Set }
-    on(channel, 'message', message => {
-      emit(this, 'message', { ...JSON.parse(message), channel })
-    })
-    once(channel, 'open', () => this.channels.add(channel))
-    once(channel, 'close', () => this.channels.delete(channel))
+    this.createChannel(peer)
   }
 
   get connectedPeers () {
