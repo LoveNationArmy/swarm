@@ -22,7 +22,7 @@ export default class Message {
   }
 
   get meta () {
-    return `${this.time} ${this.id} ${this.type} ${this.from} ${this.to ? this.to : '(to any)'}`
+    return `${this.type} ${this.id} ${this.from} ${this.to ? this.to : '(to any)'} [${this.time}]`
   }
 
   toString () {

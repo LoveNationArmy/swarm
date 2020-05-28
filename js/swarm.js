@@ -17,13 +17,18 @@ export default class Swarm extends EventTarget {
 
     this.peers = []
     this.channels = new Set()
+    this.data = { in: new Set, out: new Set }
 
     on(this, 'message', message => {
-      if (message.channel.data) {
+      if (message.channel?.data) {
         if (message.channel.data.in.has(message.id)) return
         if (message.channel.data.out.has(message.id)) return
         message.channel.data.in.add(message.id)
       }
+      if (this.data.in.has(message.id)) return
+      if (this.data.out.has(message.id)) return
+      debug.color(message.id, this.userId, 'receive', message.meta)
+      this.data.in.add(message.id)
 
       if (!emit(this, message.type, message)) return // exit if message handled
 
@@ -78,18 +83,21 @@ export default class Swarm extends EventTarget {
     on(channel, 'message', message => {
       emit(this, 'message', new Message({ ...Message.parse(message), channel }))
     })
-    once(channel, 'open', () => this.channels.add(channel))
+    once(channel, 'open', () => (this.channels.add(channel), emit(this, 'dataopen', channel)))
     once(channel, 'close', () => this.channels.delete(channel))
   }
 
   send (message) {
     message = new Message(message)
+    if (this.data.out.has(message.id)) return
+    this.data.out.add(message.id)
     for (const channel of this.channels) {
       if (channel !== message.channel) {
         if (channel.data.in.has(message.id)) continue
         if (channel.data.out.has(message.id)) continue
         channel.data.out.add(message.id)
-        channel.send(message)
+        debug.color(message.id, this.userId, 'send to', channel.peer.id, message.meta)
+        try { channel.send(message) } catch (error) { debug.color(message.id, error) }
       }
     }
   }
