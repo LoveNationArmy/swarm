@@ -63,9 +63,8 @@ export default class Swarm extends EventTarget {
             debug(this.userId, 'connected', peer.channel.remotePeerMessage.userId, `(via ${peer.channel.type})`, [peer.channelId])
             emit(this, 'peer', peer) // emit new peer for external observers
           })
-          return false
         }
-        break
+        return false
 
       case 'offer':
         if (!to && this.connectedPeers.find(peer => peer.channel.remotePeerMessage?.userId === from)) {
