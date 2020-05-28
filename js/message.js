@@ -9,8 +9,8 @@ export default class Message {
       }
       try { return JSON.parse(message) } catch (_) {}
     }
-    if (typeof message === 'object') {
-      return message
+    if (typeof message === 'object') { // copy
+      return message //Message.parse(Message.serialize(message))
     }
     throw TypeError(`Message of invalid type: ${message}`)
 
@@ -53,6 +53,14 @@ export default class Message {
 
   get userId () {
     return this.path[1]
+  }
+
+  get from () { // sugar
+    return this.userId
+  }
+
+  hasPathType (type) {
+    return this.path.find(id => id.split('.')[1] === type)
   }
 
   toString () {

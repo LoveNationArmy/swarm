@@ -12,6 +12,8 @@ export default class Peer extends RTCPeerConnection {
 //TODO: initiate: true
     super(options)
 
+    this.connected = false
+
     on(this, 'negotiationneeded', async () => {
       this.type = 'offer'
       this.setLocalDescription(await this.createOffer())
@@ -20,8 +22,8 @@ export default class Peer extends RTCPeerConnection {
     on(this, 'icegatheringstatechange', () => {
       if (this.iceGatheringState === 'complete') {
         emit(this, 'message', {
-          to: this.remotePeerMessage?.originId,
-          remoteUserId: this.remotePeerMessage?.userId,
+          to: this.remotePeer?.originId,
+          remoteUserId: this.remotePeer?.userId,
           ...this.localDescription.toJSON()
         })
       }
@@ -29,11 +31,16 @@ export default class Peer extends RTCPeerConnection {
 
     once(this, 'datachannel', channel => {
       emit(this, 'message', { type: 'datachannel', datachannel: channel })
+      once(channel, 'open', () => this.connected = true)
+      once(channel, 'open', () => emit(this, 'connect'))
+      once(channel, 'close', () => this.connected = false)
     })
   }
 
   async send (message) {
-    if (message.userId === this.userId) return
+    if (message.from === this.userId) return
+
+    debug.color(message.originId, this.userId, 'receive', message.type, 'from', message.from, message.meta)
 
     if (message.type === 'offer' && !this.type) {
       this.type = 'answer'
@@ -45,11 +52,11 @@ export default class Peer extends RTCPeerConnection {
   }
 
   setRemotePeer (message) {
-    this.remotePeerMessage = message
+    this.remotePeer = message
     this.setRemoteDescription(message)
   }
 
   toString () {
-    return `[${this.userId} ${this.type} ${this.remotePeerMessage?.userId || '(pending)'}]`
+    return `[${this.userId} ${this.type} ${this.remotePeer?.userId || '(pending)'}]`
   }
 }

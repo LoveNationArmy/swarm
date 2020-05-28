@@ -24,8 +24,8 @@ describe('swarm.discover()', function () {
         expect(alice.connectedPeers.length).to.equal(1) // alice connected to bob
         expect(bob.connectedPeers.length).to.equal(1) // bob connected to alice
 
-        expect(alice.connectedPeers[0].channel.remotePeerMessage.userId).to.equal(bob.userId)
-        expect(bob.connectedPeers[0].channel.remotePeerMessage.userId).to.equal(alice.userId)
+        expect(alice.connectedPeers[0].channel.remotePeer.userId).to.equal(bob.userId)
+        expect(bob.connectedPeers[0].channel.remotePeer.userId).to.equal(alice.userId)
 
         // TODO: test offer,answer
 

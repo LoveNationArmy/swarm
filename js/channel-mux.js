@@ -10,23 +10,32 @@ export default class ChannelMux extends EventTarget {
     this.channels = {}
   }
 
-  add (channel, prefixId, { open = false } = {}) {
+  get (id) {
+    return this.channels[id]
+  }
+
+  getAll (type) {
+    return Object
+      .entries(this.channels)
+      .filter(([key, value]) => value.type === type)
+      .map(([key, value]) => value)
+  }
+
+  add (channel, type, { open = false } = {}) {
     channel.userId = this.channelId
-    channel = new Channel(channel, prefixId)
+    channel = new Channel(channel, type)
+    const { channelId } = channel
     const listener = on(channel, 'message', message => {
       message.path = message.path ?? []
       // console.log(this.channelId, 'receive', message.path[2], message)//channel.channelId, message.type, message.path)
       if (message.path[1] === this.channelId) return
-      message.path.push(channel.channelId)
+      message.path.push(channelId)
       message.path.push(this.channelId)
       // debug.color(message.id, '[mux recv <--]', message.meta)
       emit(this, 'message', message)
     })
-    if (open) {
-      this.channels[channel.channelId] = channel
-    } else once(channel, 'open', () => {
-      this.channels[channel.channelId] = channel
-    })
+    if (open) this.channels[channelId] = channel
+    else once(channel, 'open', () => this.channels[channelId] = channel)
     once(channel, 'close', () => {
       delete this.channels[channel.channelId]
       off(listener)
@@ -51,26 +60,26 @@ export default class ChannelMux extends EventTarget {
       // as the messages will not have any major effect later,
       // maybe we can make it more implicit?
       if (message.to && message.to.split('.')[1] === 'peer'
-      && !this.channels[message.to]
-      && (channel.channelId.split('.')[1] === 'peer'
-        || (channel.channelId.split('.')[1] === 'http'
-            && message.path.find(id => id.split('.')[1] === 'datachannel')))
+        && !this.channels[message.to]
+        && (channel.type === 'peer' || (channel.type === 'http' && message.hasPathType('datachannel')))
         ) continue
 
-      if (!message.to && channel.channelId.split('.')[1] === 'http'
-        && message.path.find(id => id.split('.')[1] === 'datachannel')
+      if (!message.to && channel.type === 'http'
+        && message.hasPathType('datachannel')
         ) continue
 
-      if (!message.to && channel.channelId.split('.')[1] === 'peer'
-        && message.path[1] === this.channelId) continue
+      if (!message.to && channel.type === 'peer'
+        && message.path[1] === this.channelId
+        ) continue
 
-      if (!message.to && channel.channelId.split('.')[1] === 'peer'
-        && (channel.connected || channel.channel.type)) continue
+      if (!message.to && channel.type === 'peer'
+        && (channel.channel.connected || channel.channel.type)
+        ) continue
 
       if (!message.path.includes(channelId)) {
         // debug(this.channelId, 'sending', channel.channelId, message.type, message.to, message.path)
         const m = new Message({ ...message })
-        m.path = m.path.slice()
+        m.path = m.path.slice() // unique path array for every destination
         m.path.push(channelId)
         channel.send(m)
       }
@@ -81,12 +90,12 @@ export default class ChannelMux extends EventTarget {
 export const proxy = (name, source, target, opts) => on(source, name, event => emit(target, name, event), opts)
 
 export class Channel extends EventTarget {
-  constructor (channel, prefixId = 'channel') {
+  constructor (channel, type = 'channel') {
     super()
 
     Object.assign(this, channel)
 
-    this.channelId = `${randomId()}.${channel.channelId || prefixId}`
+    this.channelId = `${randomId()}.${channel.channelId || type}`
     this.channel = channel
 
     Object.defineProperty(this, 'data', {
@@ -101,9 +110,7 @@ export class Channel extends EventTarget {
       emit(this, 'message', message)
     })
 
-    once(channel, 'open', () => {
-      emit(this, 'open')
-    })
+    once(channel, 'open', () => emit(this, 'open'))
     once(channel, 'close', () => emit(this, 'close'))
     once(channel, 'close', () => off(listener))
   }
@@ -118,6 +125,10 @@ export class Channel extends EventTarget {
   close () {
     this.channel.close()
     emit(this, 'close') // browser channels don't necessary fire 'close' (wtf!!)
+  }
+
+  get type () {
+    return this.channelId.split`.`[1]
   }
 
   toString () {
