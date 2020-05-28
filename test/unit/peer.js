@@ -1,36 +1,36 @@
-import { emit, on, once } from '../../js/lib/events.js'
+import { once } from '../../js/lib/events.js'
 import Peer from '../../js/peer.js'
 
 describe('Peer', function () {
-  it('use default options', () => {
+  it('new peer without options', () => {
     const peer = new Peer()
-    expect(peer.getConfiguration().iceServers.length).to.equal(2)
-  })
-
-  it('override options', () => {
-    const peer = new Peer({})
     expect(peer.getConfiguration().iceServers.length).to.equal(0)
   })
 
+  it('new peer with options', () => {
+    const peer = new Peer({ id: 'foo', iceServers: [{ urls: 'stun:stun1.l.google.com:19302' }] })
+    expect(peer.id).to.equal('foo')
+    expect(peer.getConfiguration().iceServers.length).to.equal(1)
+  })
+
   it('two peers connect', done => {
-    const alice = new Peer({})
-    const bob = new Peer({})
+    const alice = new Peer()
+    const bob = new Peer()
 
-    let count = 2
-    const maybeDone = () => --count || done()
+    let count = 2, next = () => {
+      if (!--count) {
+        expect(alice.connectionState).to.equal('connected')
+        expect(bob.connectionState).to.equal('connected')
+        done()
+      }
+    }
 
-    on(alice, 'message', message => {
-      bob.send(message)
-    })
+    once(alice, 'localdescription', desc => bob.setRemoteDescription(desc))
+    once(bob, 'localdescription', desc => alice.setRemoteDescription(desc))
 
-    on(bob, 'message', message => {
-      alice.send(message)
-    })
+    once(alice, 'connected', next)
+    once(bob, 'connected', next)
 
-    const channel = alice.createDataChannel('data')
-    emit(alice, 'datachannel', channel)
-
-    once(bob, 'connect', maybeDone)
-    once(alice, 'connect', maybeDone)
+    alice.createDataChannel('data')
   })
 })
