@@ -1,4 +1,4 @@
-import { emit, once } from '../../js/lib/events.js'
+import { emit, on, once } from '../../js/lib/events.js'
 import Peer from '../../js/peer.js'
 
 describe('Peer', function () {
@@ -12,11 +12,6 @@ describe('Peer', function () {
     expect(peer.getConfiguration().iceServers.length).to.equal(0)
   })
 
-  it('has id', () => {
-    const peer = new Peer({})
-    expect(peer.id).to.be.a('string')
-  })
-
   it('two peers connect', done => {
     const alice = new Peer({})
     const bob = new Peer({})
@@ -24,22 +19,18 @@ describe('Peer', function () {
     let count = 2
     const maybeDone = () => --count || done()
 
-    once(alice, 'message', message => {
-      expect(message.id).to.equal(alice.id)
-      emit(bob, message.type, message)
+    on(alice, 'message', message => {
+      bob.send(message)
     })
 
-    once(bob, 'message', message => {
-      expect(message.id).to.equal(bob.id)
-      emit(alice, message.type, message)
+    on(bob, 'message', message => {
+      alice.send(message)
     })
 
     const channel = alice.createDataChannel('data')
+    emit(alice, 'datachannel', channel)
 
-    once(bob, 'datachannel', channel => {
-      once(channel, 'open', maybeDone)
-    })
-
-    once(channel, 'open', maybeDone)
+    once(bob, 'connect', maybeDone)
+    once(alice, 'connect', maybeDone)
   })
 })

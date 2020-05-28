@@ -5,8 +5,8 @@ import randomId from './lib/random-id.js'
 export default class Peer extends RTCPeerConnection {
   constructor (options = {
       iceServers: [
-        // { urls: ['stun:stun1.l.google.com:19302'] },
-        // { urls: ['stun:stun2.l.google.com:19302'] },
+        { urls: ['stun:stun1.l.google.com:19302'] },
+        { urls: ['stun:stun2.l.google.com:19302'] },
       ]
     }) {
 //TODO: initiate: true
@@ -38,7 +38,7 @@ export default class Peer extends RTCPeerConnection {
   }
 
   async send (message) {
-    if (message.from === this.userId) return
+    if (message.from && message.from === this.userId) return
 
     debug.color(message.originId, this.userId, 'receive', message.type, 'from', message.from, message.meta)
 

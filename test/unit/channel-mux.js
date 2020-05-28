@@ -1,7 +1,7 @@
 import { emit, once } from '../../js/lib/events.js'
 import ChannelMux from '../../js/channel-mux.js'
 
-describe('add(channel)', function () {
+xdescribe('add(channel)', function () {
   it('adds channel to its collection on `open` event', () => {
     const mux = new ChannelMux()
     const channel = new EventTarget()
@@ -33,7 +33,7 @@ describe('add(channel)', function () {
   })
 })
 
-describe('send({ channel, message })', function () {
+xdescribe('send({ channel, message })', function () {
   it('broadcasts message to other channels', done => {
     const mux = new ChannelMux()
     const a = new EventTarget()

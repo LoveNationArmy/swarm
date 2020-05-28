@@ -1,6 +1,6 @@
 import Message from '../../js/message.js'
 
-describe('new Message', function () {
+xdescribe('new Message', function () {
   it('extends Object', () => {
     const msg = new Message({})
     expect(msg).to.be.an('object')
@@ -21,7 +21,7 @@ describe('new Message', function () {
   })
 })
 
-describe('Message.parse', function () {
+xdescribe('Message.parse', function () {
   it('parses a Message string', () => {
     const fixture = 'time:id:to:from:type {"foo":"bar"}'
     const expected = {
@@ -103,7 +103,7 @@ describe('Message.parse', function () {
   })
 })
 
-describe('Message.serialize', function () {
+xdescribe('Message.serialize', function () {
   it('serializes a Message object', () => {
     const fixture = {
       time: 'time',
@@ -181,7 +181,7 @@ describe('Message.serialize', function () {
   })
 })
 
-describe('new Message(string)', function () {
+xdescribe('new Message(string)', function () {
   it('parses', () => {
     const fixture = 'time:id:to:from:type {"foo":"bar"}'
     const expected = {
@@ -198,7 +198,7 @@ describe('new Message(string)', function () {
   })
 })
 
-describe('message.toString()', function () {
+xdescribe('message.toString()', function () {
   it('return serialized', () => {
     const fixture = {
       time: 'time',

@@ -2,7 +2,7 @@ import debug from '../../js/lib/debug.js'
 import { emit, once } from '../../js/lib/events.js'
 import Swarm from '../../js/swarm.js'
 
-window.DEBUG = true
+// window.DEBUG = true
 const origin = 'http://localhost'
 
 describe('swarm.discover()', function () {
