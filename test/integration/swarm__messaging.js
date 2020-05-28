@@ -10,17 +10,17 @@ describe('swarm.send()', function () {
   this.timeout(10000)
   this.bail(true)
 
-  const swarms = ['alice', 'bob', 'charlie', 'dina']
-    .map(userId => new Swarm(userId))
+  let swarms = ['alice', 'bob', 'charlie', 'dina']
 
-  const [alice, bob, charlie, dina] = swarms
-
-  after(() => {
+  after(done => {
     swarms.map(swarm => debug(swarm.print()))
     swarms.map(swarm => swarm.destroy())
+    setTimeout(done, 2000)
   })
 
   it('swarms discover', done => {
+    swarms = swarms.map(userId => new Swarm(userId))
+
     let count = 8, next = () => {
       debug.color('f00', count)
       --count || (listeners.map(off), setTimeout(done, 200))
@@ -34,6 +34,7 @@ describe('swarm.send()', function () {
   })
 
   it('messages propagate', done => {
+    const [alice] = swarms
     const message = new Message({ type: 'msg', from: 'alice', foo: 'bar' })
 
     let count = 3, next = ({ channel, ...result }) => {

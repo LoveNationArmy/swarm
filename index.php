@@ -109,8 +109,10 @@ switch ($_SERVER['REQUEST_METHOD']) {
       exit(1);
     }
     $filename = $datadir . $type . 's/' . $id;
-    $handle = fopen($filename, 'w');
+    $handle = fopen($filename, 'c');
     if ($handle && flock($handle, LOCK_EX)) {
+      rewind($handle);
+      ftruncate($handle, 0);
       fwrite($handle, $body);
       flock($handle, LOCK_UN);
       fclose($handle);

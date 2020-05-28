@@ -11,10 +11,11 @@ describe('swarm.discover()', function () {
 
   let alice, bob, charlie
 
-  after(() => {
+  after(done => {
     alice?.destroy()
     bob?.destroy()
     charlie?.destroy()
+    setTimeout(done, 2000)
   })
 
   it('alice and bob discover over http', done => {
