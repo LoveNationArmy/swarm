@@ -38,9 +38,9 @@ describe('validate user id', function () {
 describe('validate message', function () {
   this.timeout(5000)
 
-  it('bad "path"', done => {
+  it('bad "from"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ type: 'offer', path: ['x','../malformed'] })
+    http.send({ type: 'offer', from: '../malformed' })
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -48,9 +48,9 @@ describe('validate message', function () {
     })
   })
 
-  it('bad "remoteUserId"', done => {
+  it('bad "to"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ remoteUserId: '../2123', type: 'offer', path: ['x','normal'] })
+    http.send({ to: '../2123', type: 'offer', from: 'normal' })
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -60,7 +60,7 @@ describe('validate message', function () {
 
   it('bad "type"', done => {
     const http = new HttpChannel(url('normal'))
-    http.send({ type: '../random', path: ['x','normal'] })
+    http.send({ type: '../random', from: 'normal' })
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
@@ -76,10 +76,10 @@ describe('send()', function () {
     const alice = new HttpChannel(url('alice'))
     const bob = new HttpChannel(url('bob'))
 
-    const fixture_offer = { type: 'offer', path: ['x','alice'] }
-    const expected_offer = { type: 'offer', path: ['x','alice'] }
-    const fixture_answer = { type: 'answer', path: ['x','bob'], remoteUserId: 'alice' }
-    const expected_answer = { type: 'answer', path: ['x','bob'], remoteUserId: 'alice' }
+    const fixture_offer = { type: 'offer', from: 'alice' }
+    const expected_offer = { type: 'offer', from: 'alice' }
+    const fixture_answer = { type: 'answer', from: 'bob', to: 'alice' }
+    const expected_answer = { type: 'answer', from: 'bob', to: 'alice' }
 
     once(bob, 'message', message => {
       expect(JSON.parse(message)).to.deep.equal(expected_offer)
@@ -101,10 +101,10 @@ describe('send()', function () {
     const bob = new HttpChannel(url('bob'))
     let other
 
-    const fixture_offer = { type: 'offer', path: ['x','alice'], ignore: ['bob'] }
-    const expected_offer = { type: 'offer', path: ['x','alice'] }
-    const fixture_answer = { type: 'answer', path: ['x','other'], remoteUserId: 'alice' }
-    const expected_answer = { type: 'answer', path: ['x','other'], remoteUserId: 'alice' }
+    const fixture_offer = { type: 'offer', from: 'alice', ignore: ['bob'] }
+    const expected_offer = { type: 'offer', from: 'alice' }
+    const fixture_answer = { type: 'answer', from: 'other', to: 'alice' }
+    const expected_answer = { type: 'answer', from: 'other', to: 'alice' }
 
     once(alice, 'message', message => {
       expect(JSON.parse(message)).to.deep.equal(expected_answer)

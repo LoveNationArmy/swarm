@@ -103,7 +103,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
       http_response_code(400); // Bad request
       exit(1);
     }
-    $id = $signal['remoteUserId'] ?? $signal['path'][1]; // path[1] is always user_id
+    $id = $signal['to'] ?? $signal['from'];
     if (!preg_match('/^[a-zA-Z0-9]+$/', $id)) {
       http_response_code(400); // Bad request
       exit(1);
