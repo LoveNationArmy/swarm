@@ -70,7 +70,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
       if ($handle) {
         $contents = fread($handle, $size);
         $json = json_decode($contents, true);
-        if (!isset($json['ignore']) || !in_array($user_id, $json['ignore'])) {
+        if (isset($json['id']) && (!isset($json['ignore']) || !in_array($user_id, $json['ignore']))) {
           unset($json['ignore']); // don't share ignore
           $data = json_encode($json);
           echo 'data: ', $data, PHP_EOL, PHP_EOL;
@@ -109,10 +109,19 @@ switch ($_SERVER['REQUEST_METHOD']) {
       exit(1);
     }
     $filename = $datadir . $type . 's/' . $id;
-    file_put_contents($filename, $body);
-    http_response_code(201); // Created
-    echo PHP_EOL, PHP_EOL;
-    exit;
+    $handle = fopen($filename, 'w');
+    if ($handle && flock($handle, LOCK_EX)) {
+      fwrite($handle, $body);
+      flock($handle, LOCK_UN);
+      fclose($handle);
+      http_response_code(201); // Created
+      echo PHP_EOL, PHP_EOL;
+      exit;
+    } else {
+      http_response_code(500); // Cannot create
+      exit(1);
+    }
+    break;
 
   case 'OPTIONS':
     break;

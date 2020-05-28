@@ -59,22 +59,22 @@ export default class ChannelMux extends EventTarget {
       // TODO: these are shortcuts, they are not necessary
       // as the messages will not have any major effect later,
       // maybe we can make it more implicit?
-      if (message.to && message.to.split('.')[1] === 'peer'
-        && !this.channels[message.to]
-        && (channel.type === 'peer' || (channel.type === 'http' && message.hasPathType('datachannel')))
-        ) continue
+      // if (message.to && message.to.split('.')[1] === 'peer'
+      //   && !this.channels[message.to]
+      //   && (channel.type === 'peer' || (channel.type === 'http' && message.hasPathType('datachannel')))
+      //   ) continue
 
-      if (!message.to && channel.type === 'http'
-        && message.hasPathType('datachannel')
-        ) continue
+      // if (!message.to && channel.type === 'http'
+      //   && message.hasPathType('datachannel')
+      //   ) continue
 
-      if (!message.to && channel.type === 'peer'
-        && message.path[1] === this.channelId
-        ) continue
+      // if (!message.to && channel.type === 'peer'
+      //   && message.path[1] === this.channelId
+      //   ) continue
 
-      if (!message.to && channel.type === 'peer'
-        && (channel.channel.connected || channel.channel.type)
-        ) continue
+      // if (!message.to && channel.type === 'peer'
+      //   && (channel.channel.connected || channel.channel.type)
+      //   ) continue
 
       if (!message.path.includes(channelId)) {
         // debug(this.channelId, 'sending', channel.channelId, message.type, message.to, message.path)

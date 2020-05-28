@@ -25,4 +25,8 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'connectionstatechange', () => emit(this, this.connectionState))
   }
+
+  toString () {
+    return `[${this.id} ${this.localDescription.type} ${this.connectionState}]`
+  }
 }
