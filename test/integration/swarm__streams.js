@@ -3,11 +3,12 @@ import { emit, on, once, off } from '../../js/lib/events.js'
 import Message from '../../js/message.js'
 import Swarm from '../../js/swarm.js'
 
-describe('swarm.send()', function () {
+describe('swarm.addMedia(peer, media)', function () {
   this.timeout(15000)
   this.bail(true)
 
   let alice, bob
+  let alicePeer, bobPeer
 
   const media = {
     video: {
@@ -71,13 +72,9 @@ describe('swarm.send()', function () {
   it('alice requests video stream from bob and establish video both ways', done => {
     let count = 2, next = () => {
       if (!--count) {
-        // alice.removeMedia(alice.connectedPeers[0])
-        // bob.removeMedia(bob.connectedPeers[0])
-        setTimeout(() => {
-          debug(alice.print())
-          debug(bob.print())
-          done()
-        }, 3000)
+        debug(alice.print())
+        debug(bob.print())
+        done()
       }
     }
 
@@ -85,6 +82,8 @@ describe('swarm.send()', function () {
       event.preventDefault()
 
       const { peer } = channel
+
+      bobPeer = peer
 
       once(peer, 'localdescription', desc => channel.send(new Message({
         ...desc,
@@ -98,12 +97,12 @@ describe('swarm.send()', function () {
         peer.setRemoteDescription({ ...desc, type: 'answer' })
       })
 
-      on(peer, 'stream', remoteStream => {
+      once(peer, 'stream', remoteStream => {
         debug('bob receive stream')
         // remoteVideo.srcObject = remoteStream
-        // bob.removeMedia(peer)
-        next()
       })
+
+      once(peer, 'connected', next)
 
       const localStream = await bob.addMedia(peer, media)
       debug('added media', localStream)
@@ -115,27 +114,78 @@ describe('swarm.send()', function () {
 
       const { peer } = channel
 
+      alicePeer = peer
+
       once(peer, 'localdescription', desc => channel.send(new Message({
         ...desc,
         from: 'alice',
         type: 'answer-media'
       })))
 
-      on(peer, 'stream', remoteStream => {
+      once(peer, 'stream', remoteStream => {
         debug('alice receive stream')
         // remoteVideo.srcObject = remoteStream
-        // alice.removeMedia(peer)
-        next()
       })
+
+      once(peer, 'connected', next)
 
       const localStreamPromise = alice.addMedia(peer, media)
       peer.setRemoteDescription({ ...desc, type: 'offer' })
       const localStream = await localStreamPromise
-      // debug('added media', localStream)
       // localVideo.srcObject = localStream
     })
 
     const { video } = media
     alice.send(new Message({ from: 'alice', type: 'request-media', media: { video } }))
+  })
+
+  it('bob sends quit media request', done => {
+    let count = 2, next = () => {
+      if (!--count) {
+        debug(alice.print())
+        debug(bob.print())
+        done()
+      }
+    }
+
+    on(alice, 'offer-quit-media', ({ channel, media, ...desc }, event) => {
+      event.preventDefault()
+
+      const { peer } = channel
+
+      once(peer, 'signalingstatechange', () => {
+        once(peer, 'signalingstatechange', next)
+        once(peer, 'negotiationneeded', () => {
+          channel.send(new Message({
+            ...peer.localDescription.toJSON(),
+            from: 'alice',
+            type: 'answer-quit-media',
+            media: { video: true },
+          }))
+        })
+
+        alice.removeMedia(peer, media)
+      })
+
+      peer.setRemoteDescription({ ...desc, type: 'offer' })
+      // done()
+    })
+
+    once(bobPeer, 'negotiationneeded', () => {
+      once(bob, 'answer-quit-media', (desc, event) => {
+        event.preventDefault()
+        once(bobPeer, 'signalingstatechange', next)
+        bobPeer.setRemoteDescription({ ...desc, type: 'answer' })
+      })
+
+      bob.send(new Message({
+        ...bobPeer.localDescription.toJSON(),
+        from: 'bob',
+        type: 'offer-quit-media',
+        media: { video: true },
+      }))
+    })
+
+    bob.removeMedia(bobPeer, media)
   })
 })

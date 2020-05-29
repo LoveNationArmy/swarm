@@ -59,10 +59,13 @@ export default class Swarm extends EventTarget {
       if (message.to !== this.userId) return // not handled
       event.preventDefault() // handling event
       const peer = this.peers.find(peer => message.id.startsWith(peer.id))
-      // if (!peer) return
-        // debug(message)
-        // return
-      // }
+      if (!peer) {
+        // TODO: this happens rarely when both are in flight, why?
+        // and find a way to test it (maybe send timed replies)
+        debug(peer+'')
+        debug('!?!?!?', message)
+        return
+      }
       peer.id = message.id
       if (this.peers.find(peer => peer.id.split`.`[1] === message.from)?.id > peer.id) {
         peer.close()
@@ -89,11 +92,12 @@ export default class Swarm extends EventTarget {
     return localStream
   }
 
-  removeMedia (peer) {
-    console.debug(peer.getSenders()[0].track)
-    console.debug(peer.getReceivers()[0].track)
-    // peer.getSenders().filter(t => t.track).map(t => peer.removeTrack(t))
-    // peer.getReceivers().filter(t => t.track).map(t => peer.removeTrack(t))
+  removeMedia (peer, media) {
+    media = Object.keys(media)
+
+    peer.getSenders()
+      .filter(sender => media.includes(sender?.track.kind))
+      .map(sender => (sender.track.stop(), peer.removeTrack(sender)))
   }
 
   createChannel (peer, channel = peer.createDataChannel('data')) {

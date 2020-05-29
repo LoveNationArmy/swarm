@@ -9,7 +9,7 @@ export default class Peer extends RTCPeerConnection {
     this.id = opts.id ?? randomId()
 
     on(this, 'negotiationneeded', async () => {
-      debug(this + ' negotiationeeded')
+      debug(this + ' negotiationeeded', this.signalingState)
       if (this.signalingState !== 'have-remote-offer') {
         this.setLocalDescription(await this.createOffer())
       }
@@ -17,11 +17,7 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'signalingstatechange', async () => {
       debug(this + ' signalingstate', this.signalingState)
-      if (
-        // (this.signalingState === 'have-local-offer'  && this.connectionState === 'connected') ||
-        this.signalingState === 'have-remote-offer'
-        // && this.connectionState === 'new')
-      ) {
+      if (this.signalingState === 'have-remote-offer') {
         this.setLocalDescription(await this.createAnswer())
       }
     })
