@@ -59,6 +59,10 @@ export default class Swarm extends EventTarget {
       if (message.to !== this.userId) return // not handled
       event.preventDefault() // handling event
       const peer = this.peers.find(peer => message.id.startsWith(peer.id))
+      if (!peer) {
+        debug(message)
+        return
+      }
       peer.id = message.id
       if (this.peers.find(peer => peer.id.split`.`[1] === message.from)?.id > peer.id) {
         peer.close()
@@ -75,6 +79,21 @@ export default class Swarm extends EventTarget {
     on(this, 'peer', peer => {
       once(peer, 'close', () => this.peers.splice(this.peers.indexOf(peer), 1))
     })
+  }
+
+  async addMedia (peer, media) {
+    // const transceivers = peer.getTransceivers()
+    const localStream = await navigator.mediaDevices.getUserMedia(media)
+    const tracks = localStream.getTracks()
+    tracks.forEach(track => peer.addTrack(track, localStream))
+    return localStream
+  }
+
+  removeMedia (peer) {
+    debug(peer.getSenders())
+    debug(peer.getReceivers())
+    // peer.getSenders().filter(t => t.track).map(t => peer.removeTrack(t))
+    // peer.getReceivers().filter(t => t.track).map(t => peer.removeTrack(t))
   }
 
   createChannel (peer, channel = peer.createDataChannel('data')) {
