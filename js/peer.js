@@ -9,24 +9,27 @@ export default class Peer extends RTCPeerConnection {
     this.id = opts.id ?? randomId()
 
     on(this, 'negotiationneeded', async () => {
-      debug(this.id, 'negotiationeeded')
+      debug(this + ' negotiationeeded')
       if (this.signalingState !== 'have-remote-offer') {
         this.setLocalDescription(await this.createOffer())
       }
     })
 
     on(this, 'signalingstatechange', async () => {
-      debug(this.id, 'signalingstate', this.signalingState)
-      if (this.signalingState === 'have-remote-offer') {
+      debug(this + ' signalingstate', this.signalingState)
+      if (
+        // (this.signalingState === 'have-local-offer'  && this.connectionState === 'connected') ||
+        this.signalingState === 'have-remote-offer'
+        // && this.connectionState === 'new')
+      ) {
         this.setLocalDescription(await this.createAnswer())
       }
     })
 
     on(this, 'icegatheringstatechange', () => {
-      debug(this.id, 'icegathering', this.iceGatheringState)
+      debug(this + ' icegathering', this.iceGatheringState)
       if (this.iceGatheringState === 'complete') {
         emit(this, 'localdescription', this.localDescription.toJSON())
-        // emit(this, 'localdescription', this.localDescription.toJSON())
       }
     })
 
@@ -36,7 +39,7 @@ export default class Peer extends RTCPeerConnection {
   }
 
   toString () {
-    return `[${this.id} ${this.localDescription.type} ${this.connectionState}]`
+    return `[${this.id} ${this.localDescription?.type ?? '-'} ${this.connectionState}]`
   }
 }
 

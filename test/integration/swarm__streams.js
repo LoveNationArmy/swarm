@@ -4,7 +4,7 @@ import Message from '../../js/message.js'
 import Swarm from '../../js/swarm.js'
 
 describe('swarm.send()', function () {
-  this.timeout(10000)
+  this.timeout(15000)
   this.bail(true)
 
   let alice, bob
@@ -68,8 +68,18 @@ describe('swarm.send()', function () {
     once(bob, 'peer', next)
   })
 
-  it('alice requests video stream to bob', done => {
-    let count = 2, next = () => --count || done()
+  it('alice requests video stream from bob and establish video both ways', done => {
+    let count = 2, next = () => {
+      if (!--count) {
+        // alice.removeMedia(alice.connectedPeers[0])
+        // bob.removeMedia(bob.connectedPeers[0])
+        setTimeout(() => {
+          debug(alice.print())
+          debug(bob.print())
+          done()
+        }, 3000)
+      }
+    }
 
     on(bob, 'request-media', async ({ channel, media }, event) => {
       event.preventDefault()
@@ -89,8 +99,9 @@ describe('swarm.send()', function () {
       })
 
       on(peer, 'stream', remoteStream => {
+        debug('bob receive stream')
         // remoteVideo.srcObject = remoteStream
-        bob.removeMedia(peer)
+        // bob.removeMedia(peer)
         next()
       })
 
@@ -111,14 +122,15 @@ describe('swarm.send()', function () {
       })))
 
       on(peer, 'stream', remoteStream => {
+        debug('alice receive stream')
         // remoteVideo.srcObject = remoteStream
-        alice.removeMedia(peer)
+        // alice.removeMedia(peer)
         next()
       })
 
+      const localStreamPromise = alice.addMedia(peer, media)
       peer.setRemoteDescription({ ...desc, type: 'offer' })
-
-      const localStream = await alice.addMedia(peer, media)
+      const localStream = await localStreamPromise
       // debug('added media', localStream)
       // localVideo.srcObject = localStream
     })

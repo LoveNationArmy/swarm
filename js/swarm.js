@@ -21,14 +21,14 @@ export default class Swarm extends EventTarget {
 
     on(this, 'message', message => {
       if (message.channel?.data) {
-        if (message.channel.data.in.has(message.id)) return
-        if (message.channel.data.out.has(message.id)) return
-        message.channel.data.in.add(message.id)
+        if (message.channel.data.in.has(message.meta)) return
+        if (message.channel.data.out.has(message.meta)) return
+        message.channel.data.in.add(message.meta)
       }
-      if (this.data.in.has(message.id)) return
-      if (this.data.out.has(message.id)) return
+      if (this.data.in.has(message.meta)) return
+      if (this.data.out.has(message.meta)) return
+      this.data.in.add(message.meta)
       debug.color(message.id, this.userId, 'receive', message.meta)
-      this.data.in.add(message.id)
 
       if (!emit(this, message.type, message)) return // exit if message handled
 
@@ -59,10 +59,10 @@ export default class Swarm extends EventTarget {
       if (message.to !== this.userId) return // not handled
       event.preventDefault() // handling event
       const peer = this.peers.find(peer => message.id.startsWith(peer.id))
-      if (!peer) {
-        debug(message)
-        return
-      }
+      // if (!peer) return
+        // debug(message)
+        // return
+      // }
       peer.id = message.id
       if (this.peers.find(peer => peer.id.split`.`[1] === message.from)?.id > peer.id) {
         peer.close()
@@ -90,8 +90,8 @@ export default class Swarm extends EventTarget {
   }
 
   removeMedia (peer) {
-    debug(peer.getSenders())
-    debug(peer.getReceivers())
+    console.debug(peer.getSenders()[0].track)
+    console.debug(peer.getReceivers()[0].track)
     // peer.getSenders().filter(t => t.track).map(t => peer.removeTrack(t))
     // peer.getReceivers().filter(t => t.track).map(t => peer.removeTrack(t))
   }
@@ -108,13 +108,13 @@ export default class Swarm extends EventTarget {
 
   send (message) {
     message = new Message(message)
-    if (this.data.out.has(message.id)) return
-    this.data.out.add(message.id)
+    if (this.data.out.has(message.meta)) return
+    this.data.out.add(message.meta)
     for (const channel of this.channels) {
       if (channel !== message.channel) {
-        if (channel.data.in.has(message.id)) continue
-        if (channel.data.out.has(message.id)) continue
-        channel.data.out.add(message.id)
+        if (channel.data.in.has(message.meta)) continue
+        if (channel.data.out.has(message.meta)) continue
+        channel.data.out.add(message.meta)
         debug.color(message.id, this.userId, 'send to', channel.peer.id, message.meta)
         try { channel.send(message) } catch (error) { debug.color(message.id, error) }
       }
