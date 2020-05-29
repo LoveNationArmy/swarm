@@ -1,8 +1,7 @@
 import { once } from '../../js/lib/events.js'
 import HttpChannel from '../../js/http-channel.js'
 
-const origin = 'http://localhost'
-const url = (userId = '') => `${origin}/?user_id=${userId}`
+const url = (userId = '') => `${window.ORIGIN}/?user_id=${userId}`
 
 describe('validate user id', function () {
   this.timeout(5000)
@@ -30,7 +29,7 @@ describe('validate user id', function () {
     once(http, 'open', () => {
       expect(http.readyState).to.equal(1) // 1 is open
       http.close()
-      setTimeout(done, 2000)
+      done()
     })
   })
 })
@@ -64,13 +63,13 @@ describe('validate message', function () {
     once(http, 'error', error => {
       expect(error.message).to.equal('400')
       http.close()
-      setTimeout(done, 2000)
+      done()
     })
   })
 })
 
 describe('send()', function () {
-  this.timeout(20000)
+  this.timeout(5000)
 
   it('exchange offer and answer', done => {
     const alice = new HttpChannel(url('alice'))
@@ -90,7 +89,7 @@ describe('send()', function () {
       expect(JSON.parse(message)).to.deep.equal(expected_answer)
       alice.close()
       bob.close()
-      setTimeout(done, 2000)
+      setTimeout(done, 3000)
     })
 
     alice.send(JSON.stringify(fixture_offer))
@@ -111,7 +110,7 @@ describe('send()', function () {
       alice.close()
       bob.close()
       other.close()
-      setTimeout(done, 2000)
+      done()
     })
 
     alice.send(JSON.stringify(fixture_offer))
@@ -122,6 +121,6 @@ describe('send()', function () {
         expect(JSON.parse(message)).to.deep.equal(expected_offer)
         other.send(JSON.stringify(fixture_answer))
       })
-    }, 500)
+    }, 1000) // give time to see if alice and bob exchange first
   })
 })

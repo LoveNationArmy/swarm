@@ -2,9 +2,6 @@ import debug from '../../js/lib/debug.js'
 import { emit, once } from '../../js/lib/events.js'
 import Swarm from '../../js/swarm.js'
 
-window.DEBUG = true
-window.ORIGIN = 'http://localhost'
-
 describe('swarm.discover()', function () {
   this.timeout(10000)
   this.bail(true)

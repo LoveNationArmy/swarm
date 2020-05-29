@@ -88,7 +88,8 @@ switch ($_SERVER['REQUEST_METHOD']) {
       while (ob_get_level()) ob_end_flush();
       flush();
 
-      sleep(1);
+      // sleep(1);
+      usleep(500000);
 
       echo 'event: ping', PHP_EOL, 'data: hello', PHP_EOL, PHP_EOL;
 
@@ -109,6 +110,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
       exit(1);
     }
     $filename = $datadir . $type . 's/' . $id;
+    // file_put_contents($filename, $body, LOCK_EX);
     $handle = fopen($filename, 'c');
     if ($handle && flock($handle, LOCK_EX)) {
       rewind($handle);

@@ -3,9 +3,6 @@ import { emit, on, once, off } from '../../js/lib/events.js'
 import Message from '../../js/message.js'
 import Swarm from '../../js/swarm.js'
 
-window.DEBUG = true
-window.ORIGIN = 'http://localhost'
-
 describe('swarm.send()', function () {
   this.timeout(10000)
   this.bail(true)

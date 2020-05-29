@@ -1,13 +1,28 @@
-php: stunnel.pem
-	@php -S localhost:1337 index.php & sudo stunnel3 -d 443 -r 1337 -p ./stunnel.pem -f
+SHELL=/bin/bash
 
-stunnel.pem:
-	@openssl req -new -x509 -days 365 -nodes -out stunnel.pem -keyout stunnel.pem
+.EXPORT_ALL_VARIABLES:
+HOST?=localhost
+PORT?=1337
+ORIGIN=http://$(HOST):$(PORT)
+TEST?=
+
+%:
+	@:
+
+args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
 test:
-	@mocha-headless
+	@make php & mocha-headless $(call args) && killall php
 
-test-cov:
-	@mocha-headless --coverage
+mocha:
+	@mocha-headless $(call args)
 
-.PHONY: test test-cov
+coverage:
+	@make test -- --coverage
+
+# HOST=0.0.0.0 PORT=80 make php
+php:
+	@killall php || true
+	@PHP_CLI_SERVER_WORKERS=100 php -S ${HOST}:${PORT} index.php > /dev/null 2>&1
+
+.PHONY: test mocha coverage php
