@@ -79,7 +79,7 @@ describe('swarm.discover()', function () {
 
   it('charlie discovers alice over p2p', done => {
     let count = 2, next = () => {
-      if (!--count) { // charlie and alice discover over http (via bob)
+      if (!--count) { // charlie and alice discover over p2p (via bob)
         debug(alice.print())
         debug(charlie.print())
 
