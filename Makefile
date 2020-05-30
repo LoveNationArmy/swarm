@@ -4,14 +4,13 @@ SHELL=/bin/bash
 HOST?=localhost
 PORT?=1337
 ORIGIN=http://$(HOST):$(PORT)
-TEST?=
 
 %:
 	@:
 
 args = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
 
-test:
+test: clean
 	@make php & mocha-headless $(call args) && killall php
 
 mocha:
@@ -23,6 +22,10 @@ coverage:
 # HOST=0.0.0.0 PORT=80 make php
 php:
 	@killall php || true
-	@PHP_CLI_SERVER_WORKERS=100 php -S ${HOST}:${PORT} index.php > /dev/null 2>&1
+	@PHP_CLI_SERVER_WORKERS=200 php -S ${HOST}:${PORT} index.php > /dev/null 2>&1
 
-.PHONY: test mocha coverage php
+clean:
+	@rm -rf signals/offers/*
+	@rm -rf signals/answers/*
+
+.PHONY: mocha coverage php clean
