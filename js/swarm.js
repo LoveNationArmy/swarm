@@ -11,7 +11,7 @@ export default class Swarm extends EventTarget {
 
     if (typeof opts === 'string') opts = { userId: opts }
 
-    this.userId = opts.userId
+    this.userId = opts.userId ?? randomId()
     this.origin = opts.origin ?? window.ORIGIN ?? document.location.origin
     this.http = new HttpChannel(`${this.origin}/?user_id=${this.userId}`)
 
@@ -62,7 +62,7 @@ export default class Swarm extends EventTarget {
       if (!peer) {
         // TODO: this happens rarely when both are in flight, why?
         // and find a way to test it (maybe send timed replies)
-        debug(peer+'')
+        debug(this.print())
         debug('!?!?!?', message)
         return
       }
@@ -72,6 +72,82 @@ export default class Swarm extends EventTarget {
         return
       }
       peer.setRemoteDescription(message)
+    })
+
+    on(this, 'request-media', async ({ channel, media }, event) => {
+      event.preventDefault()
+
+      const { peer } = channel
+
+      once(peer, 'localdescription', desc => channel.send(new Message({
+        ...desc,
+        media,
+        from: this.userId,
+        type: 'offer-media'
+      })))
+
+      once(this, 'answer-media', (desc, event) => {
+        event.preventDefault()
+        peer.setRemoteDescription({ ...desc, type: 'answer' })
+      })
+
+      once(peer, 'remotestream', remoteStream => {
+        debug(peer + ' swarm receive stream')
+      })
+
+      const localStream = await navigator.mediaDevices.getUserMedia(media)
+      peer.setLocalStream(localStream)
+    })
+
+    on(this, 'offer-media', async ({ channel, media, ...desc }, event) => {
+      event.preventDefault()
+
+      const { peer } = channel
+
+      once(peer, 'localdescription', desc => channel.send(new Message({
+        ...desc,
+        from: this.userId,
+        type: 'answer-media'
+      })))
+
+      once(peer, 'remotestream', remoteStream => {
+        debug(peer + ' receive stream')
+      })
+
+      const localStream = await navigator.mediaDevices.getUserMedia(media)
+      peer.setRemoteDescription({ ...desc, type: 'offer' })
+      peer.setLocalStream(localStream)
+    })
+
+    once(this, 'offer-quit-media', ({ channel, media, ...desc }, event) => {
+      event.preventDefault()
+
+      const { peer } = channel
+
+      once(peer, 'localdescription', desc => channel.send(new Message({
+        ...desc,
+        from: this.userId,
+        type: 'answer-quit-media',
+        media
+      })))
+
+      once(peer, 'signalingstatechange', () => {
+        once(peer, 'signalingstatechange', () => {
+          emit(peer, 'endedmedia', media)
+        })
+
+        peer.removeMedia(media)
+      })
+
+      peer.setRemoteDescription({ ...desc, type: 'offer' })
+      debug.color('#f00', 'after this should remove media')
+    })
+
+    once(this, 'answer-quit-media', ({ channel, media, ...desc }, event) => {
+      event.preventDefault()
+      const { peer } = channel
+      once(peer, 'signalingstatechange', () => emit(peer, 'endedmedia', media))
+      peer.setRemoteDescription({ ...desc, type: 'answer' })
     })
 
     on(this.http, 'message', message => emit(this, 'message', new Message({
@@ -84,22 +160,6 @@ export default class Swarm extends EventTarget {
     })
   }
 
-  async addMedia (peer, media) {
-    // const transceivers = peer.getTransceivers()
-    const localStream = await navigator.mediaDevices.getUserMedia(media)
-    const tracks = localStream.getTracks()
-    tracks.forEach(track => peer.addTrack(track, localStream))
-    return localStream
-  }
-
-  removeMedia (peer, media) {
-    media = Object.keys(media)
-
-    peer.getSenders()
-      .filter(sender => media.includes(sender?.track.kind))
-      .map(sender => (sender.track.stop(), peer.removeTrack(sender)))
-  }
-
   createChannel (peer, channel = peer.createDataChannel('data')) {
     channel.peer = peer
     channel.data = { in: new Set, out: new Set }
@@ -108,6 +168,11 @@ export default class Swarm extends EventTarget {
     })
     once(channel, 'open', () => (this.channels.add(channel), emit(this, 'dataopen', channel)))
     once(channel, 'close', () => this.channels.delete(channel))
+  }
+
+  broadcast (message) {
+    message = new Message(message)
+    this.send({ ...message, from: this.userId })
   }
 
   send (message) {

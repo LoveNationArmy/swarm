@@ -1,0 +1,45 @@
+<video id="localVideo" autoplay muted controls></video>
+<video id="remoteVideo" autoplay muted controls></video>
+<br>
+<button id="startCall" disabled>start call</button>
+<button id="stopCall" disabled>end call</button>
+
+<script type="module">
+import { on, once } from '../js/lib/events.js'
+import Swarm from '../js/swarm.js'
+
+const media = {
+  video: {
+    resizeMode: 'crop-and-scale',
+    facingMode: 'user',
+    frameRate: 24,
+    width: 176,
+    height: 144
+  }
+}
+
+const swarm = new Swarm({ origin: 'http://localhost:1337' })
+
+swarm.discover()
+
+once(swarm, 'dataopen', () => startCall.disabled = false)
+
+on(swarm, 'peer', peer => {
+  on(peer, 'localstream', localStream => localVideo.srcObject = localStream)
+  on(peer, 'remotestream', remoteStream => remoteVideo.srcObject = remoteStream)
+
+  stopCall.onclick = () => {
+    once(peer, 'localdescription', desc => swarm.broadcast({
+      ...desc,
+      type: 'offer-quit-media',
+      media
+    }))
+    peer.removeMedia(media)
+  }
+})
+
+startCall.onclick = () => {
+  swarm.broadcast({ type: 'request-media', media })
+  stopCall.disabled = false
+}
+</script>
