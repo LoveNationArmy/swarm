@@ -33,17 +33,23 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'track', event => emit(this, 'remotestream', event.streams[0]))
 
-    on(this, 'remotestream', remoteStream => {
-      debug(this + ' add remote stream', remoteStream.getTracks()[0].kind)
-      this.remoteStream = remoteStream
+    on(this, 'remotestream', stream => {
+      debug(this + ' add remote stream', stream?.getTracks()[0].kind)
+      if (this.remoteStream && stream) {
+        const remoteStream = this.remoteStream = this.remoteStream || stream
+        stream.getTracks().map(track => remoteStream.addTrack(track))
+      } else {
+        this.remoteStream = stream
+      }
     })
   }
 
   setLocalStream (stream) {
-    debug(this + ' add local stream', stream.getTracks()[0].kind)
-    stream.getTracks().map(track => this.addTrack(track, stream))
-    this.localStream = stream
-    emit(this, 'localstream', stream)
+    debug(this + ' add local stream', stream.getTracks())
+    const localStream = this.localStream = this.localStream || stream
+    stream.getTracks().map(track => this.addTrack(track, localStream))
+    emit(this, 'localstream', localStream)
+    debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
   }
 
   removeMedia (media) {
@@ -51,9 +57,41 @@ export default class Peer extends RTCPeerConnection {
       emit(this, 'localdescription', this.localDescription.toJSON())
     })
 
+    media = Object.keys(media)
+
+    // this removes the tracks from the rtc sender stream
     this.getSenders()
-      .filter(sender => Object.keys(media).includes(sender?.track.kind))
-      .map(sender => (sender.track.stop(), this.removeTrack(sender)))
+      .filter(sender => media.includes(sender?.track?.kind))
+      .map(sender => this.removeTrack(sender))
+
+    // these stop and remove the tracks from the dom media streams
+    if (this.localStream) this.localStream
+      .getTracks()
+      .filter(track => media.includes(track.kind))
+      .map(track => {
+        track.stop()
+        this.localStream.removeTrack(track)
+      })
+
+    if (this.remoteStream) this.remoteStream
+      .getTracks()
+      .filter(track => media.includes(track.kind))
+      .map(track => {
+        track.stop()
+        this.remoteStream.removeTrack(track)
+      })
+
+    // if there are no more tracks left, delete streams
+    if (this.localStream && this.localStream.getTracks().length === 0) {
+      this.localStream = null
+    }
+
+    if (this.remoteStream && this.remoteStream.getTracks().length === 0) {
+      this.remoteStream = null
+    }
+
+    emit(this, 'localstream', this.localStream)
+    emit(this, 'remotestream', this.remoteStream)
   }
 
   toString () {

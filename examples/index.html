@@ -1,0 +1,10 @@
+<style>iframe { width: 100%; height: 45%; }</style>
+<script>go = src => a.src=b.src=document.location.hash=src</script>
+<body onload="go(document.location.hash.slice(1))">
+<select onchange="go(this.value)">
+  <option>select below</option>
+  <option value="video-call.html">video-call.html</option>
+</select>
+<iframe id="a"></iframe>
+<iframe id="b"></iframe>
+</body>

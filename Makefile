@@ -28,4 +28,7 @@ clean:
 	@rm -rf signals/offers/*
 	@rm -rf signals/answers/*
 
+example:
+	@PORT=4334 make php & PORT=4335 live-server --ignorePattern=signals --open=/examples/ .
+
 .PHONY: mocha coverage php clean

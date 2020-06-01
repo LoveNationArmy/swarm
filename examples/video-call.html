@@ -1,10 +1,13 @@
 <video id="localVideo" autoplay muted controls></video>
 <video id="remoteVideo" autoplay muted controls></video>
 <br>
-<button id="startCall" disabled>start call</button>
-<button id="stopCall" disabled>end call</button>
+<button id="videoOn" disabled>turn video on</button>
+<button id="videoOff" disabled style="display: none">turn video off</button>
+<button id="audioOn" disabled>turn audio on</button>
+<button id="audioOff" disabled style="display: none">turn audio off</button>
 
 <script type="module">
+window.DEBUG = true
 import { on, once } from '../js/lib/events.js'
 import Swarm from '../js/swarm.js'
 
@@ -15,31 +18,71 @@ const media = {
     frameRate: 24,
     width: 176,
     height: 144
+  },
+  audio: {
+    audio: {
+      autoGainControl: true,
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      sampleRate: 11050,
+    }
   }
 }
 
-const swarm = new Swarm({ origin: 'http://localhost:1337' })
+const swarm = new Swarm({ origin: 'http://localhost:4334' })
 
 swarm.discover()
 
-once(swarm, 'dataopen', () => startCall.disabled = false)
+on(swarm, 'dataopen', channel => {
+  const { peer } = channel
 
-on(swarm, 'peer', peer => {
-  on(peer, 'localstream', localStream => localVideo.srcObject = localStream)
-  on(peer, 'remotestream', remoteStream => remoteVideo.srcObject = remoteStream)
+  ;[...document.querySelectorAll('button')].map(button => button.disabled = false)
 
-  stopCall.onclick = () => {
+  on(peer, 'localstream', localStream => {
+    console.log('local stream:', localStream)
+    localVideo.srcObject = localStream
+    const hasVideo = localStream?.getTracks().find(track => track.kind === 'video')
+    videoOn.style.display = hasVideo ? 'none' : 'inline'
+    videoOff.style.display = hasVideo ? 'inline' : 'none'
+
+    const hasAudio = localStream?.getTracks().find(track => track.kind === 'audio')
+    audioOn.style.display = hasAudio ? 'none' : 'inline'
+    audioOff.style.display = hasAudio ? 'inline' : 'none'
+  })
+
+  on(peer, 'remotestream', remoteStream => {
+    console.log('remote stream:', remoteStream?.getTracks())
+    remoteVideo.srcObject = remoteStream
+  })
+
+  on(videoOff, 'click', () => {
     once(peer, 'localdescription', desc => swarm.broadcast({
       ...desc,
       type: 'offer-quit-media',
-      media
+      media: { video: true }
     }))
-    peer.removeMedia(media)
-  }
+    peer.removeMedia({ video: true })
+  })
+
+  on(audioOff, 'click', () => {
+    once(peer, 'localdescription', desc => swarm.broadcast({
+      ...desc,
+      type: 'offer-quit-media',
+      media: { audio: true }
+    }))
+    peer.removeMedia({ audio: true })
+  })
+
+  on(videoOn, 'click', () => {
+    const { video } = media
+    swarm.broadcast({ type: 'request-media', media: { video }})
+  })
+
+  on(audioOn, 'click', () => {
+    const { audio } = media
+    swarm.broadcast({ type: 'request-media', media: { audio }})
+  })
 })
 
-startCall.onclick = () => {
-  swarm.broadcast({ type: 'request-media', media })
-  stopCall.disabled = false
-}
 </script>

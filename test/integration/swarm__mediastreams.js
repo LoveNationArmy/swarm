@@ -66,45 +66,63 @@ describe('swarm media streams', function () {
     alice.discover()
     bob.discover()
 
-    once(alice, 'peer', next)
-    once(bob, 'peer', next)
+    once(alice, 'dataopen', next)
+    once(bob, 'dataopen', next)
   })
 
-  it('alice requests video stream from bob and establish video both ways', done => {
-    let count = 2, next = () => {
-      if (!--count) {
-        debug(alice.print())
-        debug(bob.print())
-        done()
+  for (let times = 2; times--;) {
+    it('alice requests video stream from bob and establish video both ways', done => {
+      let count = 2, next = () => {
+        if (!--count) {
+          debug(alice.print())
+          debug(bob.print())
+          done()
+        }
       }
-    }
 
-    on(bobPeer, 'remotestream', next)
-    on(alicePeer, 'remotestream', next)
+      on(bobPeer, 'remotestream', next)
+      on(alicePeer, 'remotestream', next)
 
-    const { video } = media
-    alice.send(new Message({ from: 'alice', type: 'request-media', media: { video } }))
-  })
+      const { video } = media
+      alice.broadcast({ type: 'request-media', media: { video } })
+    })
 
-  it('bob sends quit media request, both end media', done => {
-    let count = 2, next = () => {
-      if (!--count) {
-        debug(alice.print())
-        debug(bob.print())
-        done()
+    it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
+      let count = 2, next = () => {
+        if (!--count) {
+          debug(alice.print())
+          debug(bob.print())
+          done()
+        }
       }
-    }
 
-    once(alicePeer, 'endedmedia', next)
-    once(bobPeer, 'endedmedia', next)
+      on(bobPeer, 'remotestream', next)
+      on(alicePeer, 'remotestream', next)
 
-    once(bobPeer, 'localdescription', desc => bob.send(new Message({
-      ...desc,
-      from: 'bob',
-      type: 'offer-quit-media',
-      media: { video: true }
-    })))
+      const { audio } = media
+      bob.broadcast({ type: 'request-media', media: { audio } })
+    })
 
-    bobPeer.removeMedia({ video: true })
-  })
+    it('bob sends quit media request, both end media', done => {
+      let count = 2, next = () => {
+        if (!--count) {
+          debug(alice.print())
+          debug(bob.print())
+          done()
+        }
+      }
+
+      once(alicePeer, 'endedmedia', next)
+      once(bobPeer, 'endedmedia', next)
+
+      once(bobPeer, 'localdescription', desc => bob.send(new Message({
+        ...desc,
+        from: 'bob',
+        type: 'offer-quit-media',
+        media: { video: true }
+      })))
+
+      bobPeer.removeMedia({ video: true })
+    })
+  }
 })

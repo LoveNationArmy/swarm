@@ -119,7 +119,7 @@ export default class Swarm extends EventTarget {
       peer.setLocalStream(localStream)
     })
 
-    once(this, 'offer-quit-media', ({ channel, media, ...desc }, event) => {
+    on(this, 'offer-quit-media', ({ channel, media, ...desc }, event) => {
       event.preventDefault()
 
       const { peer } = channel
@@ -143,10 +143,12 @@ export default class Swarm extends EventTarget {
       debug.color('#f00', 'after this should remove media')
     })
 
-    once(this, 'answer-quit-media', ({ channel, media, ...desc }, event) => {
+    on(this, 'answer-quit-media', ({ channel, media, ...desc }, event) => {
       event.preventDefault()
       const { peer } = channel
-      once(peer, 'signalingstatechange', () => emit(peer, 'endedmedia', media))
+      once(peer, 'signalingstatechange', () => {
+        emit(peer, 'endedmedia', media)
+      })
       peer.setRemoteDescription({ ...desc, type: 'answer' })
     })
 
