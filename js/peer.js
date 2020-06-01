@@ -11,7 +11,11 @@ export default class Peer extends RTCPeerConnection {
     on(this, 'negotiationneeded', async () => {
       debug(this + ' negotiationeeded', this.signalingState, this.iceGatheringState, this.iceConnectionState)
       if (this.signalingState !== 'have-remote-offer') {
-        this.setLocalDescription(await this.createOffer())
+        try {
+          await this.setLocalDescription(await this.createOffer())
+        } catch (error) {
+          debug(error)
+        }
       }
     })
 
@@ -54,6 +58,7 @@ export default class Peer extends RTCPeerConnection {
     stream.getTracks().map(track => this.addTrack(track, this.localStream))
 
     emit(this, 'localstream', this.localStream)
+    emit(this, 'negotiationneeded')
     debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
   }
 
@@ -100,7 +105,7 @@ export default class Peer extends RTCPeerConnection {
   }
 
   toString () {
-    return `[${this.id} ${this.localDescription?.type ?? '-'} ${this.connectionState}]`
+    return `[${this.userId} ${this.id} ${this.localDescription?.type ?? '-'} ${this.connectionState}]`
   }
 }
 

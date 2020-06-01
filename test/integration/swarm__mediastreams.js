@@ -71,58 +71,69 @@ describe('swarm media streams', function () {
   })
 
   for (let times = 2; times--;) {
-    it('alice requests video stream from bob and establish video both ways', done => {
+    it('alice sends video media stream request to bob, both establish', done => {
       let count = 2, next = () => {
         if (!--count) {
           debug(alice.print())
           debug(bob.print())
+
+          const aliceLocalTracks = alicePeer.localStream.getTracks()
+          const aliceRemoteTracks = alicePeer.remoteStream.getTracks()
+          const bobLocalTracks = bobPeer.localStream.getTracks()
+          const bobRemoteTracks = bobPeer.remoteStream.getTracks()
+
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('video')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('video')
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('video')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('video')
+
           done()
         }
       }
 
-      on(bobPeer, 'remotestream', next)
-      on(alicePeer, 'remotestream', next)
+      once(bobPeer, 'remotestream', next)
+      once(alicePeer, 'remotestream', next)
 
       const { video } = media
       alice.broadcast({ type: 'request-media', media: { video } })
     })
 
-    it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
+    // it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
+    //   let count = 2, next = () => {
+    //     if (!--count) {
+    //       debug(alice.print())
+    //       debug(bob.print())
+    //       done()
+    //     }
+    //   }
+
+    //   on(bobPeer, 'remotestream', next)
+    //   on(alicePeer, 'remotestream', next)
+
+    //   const { audio } = media
+    //   bob.broadcast({ type: 'request-media', media: { audio } })
+    // })
+
+    it('alice sends quit video media request to bob, both end', done => {
       let count = 2, next = () => {
         if (!--count) {
           debug(alice.print())
           debug(bob.print())
-          done()
-        }
-      }
-
-      on(bobPeer, 'remotestream', next)
-      on(alicePeer, 'remotestream', next)
-
-      const { audio } = media
-      bob.broadcast({ type: 'request-media', media: { audio } })
-    })
-
-    it('bob sends quit media request, both end media', done => {
-      let count = 2, next = () => {
-        if (!--count) {
-          debug(alice.print())
-          debug(bob.print())
-          done()
+          setTimeout(done, 2000)
         }
       }
 
       once(alicePeer, 'endedmedia', next)
       once(bobPeer, 'endedmedia', next)
 
-      once(bobPeer, 'localdescription', desc => bob.send(new Message({
+      once(alicePeer, 'localdescription', desc => alice.send(new Message({
         ...desc,
-        from: 'bob',
+        from: 'alice',
         type: 'offer-quit-media',
         media: { video: true }
       })))
 
-      bobPeer.removeMedia({ video: true })
+      alicePeer.removeMedia({ video: true })
     })
   }
 })

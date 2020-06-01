@@ -42,6 +42,7 @@ export default class Swarm extends EventTarget {
       }
       event.preventDefault() // handling event
       const peer = new Peer()
+      peer.userId = this.userId
       this.peers.push(peer)
       peer.id = message.id + '.' + this.userId
       once(peer, 'localdescription', desc => message.channel.send(new Message({
@@ -194,6 +195,7 @@ export default class Swarm extends EventTarget {
 
   discover (channel = this.http) {
     const peer = new Peer()
+    peer.userId = this.userId
     this.peers.push(peer)
     peer.id = peer.id + '.' + this.userId
     once(peer, 'localdescription', desc => channel.send(new Message({
