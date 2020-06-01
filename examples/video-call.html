@@ -40,7 +40,7 @@ on(swarm, 'dataopen', channel => {
   ;[...document.querySelectorAll('button')].map(button => button.disabled = false)
 
   on(peer, 'localstream', localStream => {
-    console.log('local stream:', localStream)
+    console.log('local stream:', localStream?.getTracks())
     localVideo.srcObject = localStream
     const hasVideo = localStream?.getTracks().find(track => track.kind === 'video')
     videoOn.style.display = hasVideo ? 'none' : 'inline'

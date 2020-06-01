@@ -31,24 +31,29 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'connectionstatechange', () => emit(this, this.connectionState))
 
-    on(this, 'track', event => emit(this, 'remotestream', event.streams[0]))
-
-    on(this, 'remotestream', stream => {
-      debug(this + ' add remote stream', stream?.getTracks()[0].kind)
-      if (this.remoteStream && stream) {
-        const remoteStream = this.remoteStream = this.remoteStream || stream
-        stream.getTracks().map(track => remoteStream.addTrack(track))
+    on(this, 'track', event => {
+      // debug(this + ' add remote stream', stream?.getTracks()[0].kind)
+      if (this.remoteStream) {
+        this.remoteStream.addTrack(event.track)
       } else {
-        this.remoteStream = stream
+        this.remoteStream = event.streams[0]
       }
+
+      emit(this, 'remotestream', this.remoteStream)
     })
   }
 
   setLocalStream (stream) {
     debug(this + ' add local stream', stream.getTracks())
-    const localStream = this.localStream = this.localStream || stream
-    stream.getTracks().map(track => this.addTrack(track, localStream))
-    emit(this, 'localstream', localStream)
+    if (this.localStream) {
+      stream.getTracks().map(track => this.localStream.addTrack(track))
+    } else {
+      this.localStream = stream
+    }
+
+    stream.getTracks().map(track => this.addTrack(track, this.localStream))
+
+    emit(this, 'localstream', this.localStream)
     debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
   }
 
@@ -62,7 +67,7 @@ export default class Peer extends RTCPeerConnection {
     // this removes the tracks from the rtc sender stream
     this.getSenders()
       .filter(sender => media.includes(sender?.track?.kind))
-      .map(sender => this.removeTrack(sender))
+      .map(sender => this.removeTrack(sender, this.localStream))
 
     // these stop and remove the tracks from the dom media streams
     if (this.localStream) this.localStream
