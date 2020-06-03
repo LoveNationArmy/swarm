@@ -98,23 +98,67 @@ describe('swarm media streams', function () {
       alice.broadcast({ type: 'request-media', media: { video } })
     })
 
-    // it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
-    //   let count = 2, next = () => {
-    //     if (!--count) {
-    //       debug(alice.print())
-    //       debug(bob.print())
-    //       done()
-    //     }
-    //   }
+    it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
+      let count = 2, next = () => {
+        if (!--count) {
+          debug(alice.print())
+          debug(bob.print())
 
-    //   on(bobPeer, 'remotestream', next)
-    //   on(alicePeer, 'remotestream', next)
+          const aliceLocalTracks = alicePeer.localStream.getTracks()
+          const aliceRemoteTracks = alicePeer.remoteStream.getTracks()
+          const bobLocalTracks = bobPeer.localStream.getTracks()
+          const bobRemoteTracks = bobPeer.remoteStream.getTracks()
 
-    //   const { audio } = media
-    //   bob.broadcast({ type: 'request-media', media: { audio } })
-    // })
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('audio,video')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('audio,video')
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('audio,video')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('audio,video')
+
+          done()
+        }
+      }
+
+      on(bobPeer, 'remotestream', next)
+      on(alicePeer, 'remotestream', next)
+
+      const { audio } = media
+      bob.broadcast({ type: 'request-media', media: { audio } })
+    })
 
     it('alice sends quit video media request to bob, both end', done => {
+      let count = 2, next = () => {
+        if (!--count) {
+          debug(alice.print())
+          debug(bob.print())
+
+          const aliceLocalTracks = alicePeer.localStream.getTracks()
+          const aliceRemoteTracks = alicePeer.remoteStream.getTracks()
+          const bobLocalTracks = bobPeer.localStream.getTracks()
+          const bobRemoteTracks = bobPeer.remoteStream.getTracks()
+
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('audio')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('audio')
+          expect(aliceLocalTracks.map(track => track.kind).join()).to.equal('audio')
+          expect(aliceRemoteTracks.map(track => track.kind).join()).to.equal('audio')
+
+          done()
+        }
+      }
+
+      once(alicePeer, 'endedmedia', next)
+      once(bobPeer, 'endedmedia', next)
+
+      once(alicePeer, 'localdescription', desc => alice.send(new Message({
+        ...desc,
+        from: 'alice',
+        type: 'offer-quit-media',
+        media: { video: true }
+      })))
+
+      alicePeer.removeMedia({ video: true })
+    })
+
+    it('alice sends quit audio media request to bob, both end', done => {
       let count = 2, next = () => {
         if (!--count) {
           debug(alice.print())
@@ -136,10 +180,10 @@ describe('swarm media streams', function () {
         ...desc,
         from: 'alice',
         type: 'offer-quit-media',
-        media: { video: true }
+        media: { audio: true }
       })))
 
-      alicePeer.removeMedia({ video: true })
+      alicePeer.removeMedia({ audio: true })
     })
   }
 })
