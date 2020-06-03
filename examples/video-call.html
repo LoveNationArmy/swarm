@@ -41,7 +41,10 @@ on(swarm, 'dataopen', channel => {
 
   on(peer, 'localstream', localStream => {
     console.log('local stream:', localStream?.getTracks())
-    localVideo.srcObject = localStream
+    if (localVideo.srcObject !== localStream) {
+      localVideo.srcObject = localStream
+    }
+
     const hasVideo = localStream?.getTracks().find(track => track.kind === 'video')
     videoOn.style.display = hasVideo ? 'none' : 'inline'
     videoOff.style.display = hasVideo ? 'inline' : 'none'
@@ -53,7 +56,9 @@ on(swarm, 'dataopen', channel => {
 
   on(peer, 'remotestream', remoteStream => {
     console.log('remote stream:', remoteStream?.getTracks())
-    remoteVideo.srcObject = remoteStream
+    if (remoteVideo.srcObject !== remoteStream) {
+      remoteVideo.srcObject = remoteStream
+    }
   })
 
   on(videoOff, 'click', () => {

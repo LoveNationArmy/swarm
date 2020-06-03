@@ -119,6 +119,12 @@ describe('swarm media streams', function () {
         if (!--count) {
           debug(alice.print())
           debug(bob.print())
+
+          expect(alicePeer.localStream).to.equal(null)
+          expect(alicePeer.remoteStream).to.equal(null)
+          expect(bobPeer.localStream).to.equal(null)
+          expect(bobPeer.remoteStream).to.equal(null)
+
           setTimeout(done, 2000)
         }
       }

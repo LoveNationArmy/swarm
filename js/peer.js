@@ -10,8 +10,10 @@ export default class Peer extends RTCPeerConnection {
 
     on(this, 'negotiationneeded', async () => {
       debug(this + ' negotiationeeded', this.signalingState, this.iceGatheringState, this.iceConnectionState)
-      if (this.signalingState !== 'have-remote-offer') {
+      if (this.signalingState === 'have-local-offer'
+        || (this.signalingState === 'stable')) {
         try {
+          // debug('SET LOCAL DESC')
           await this.setLocalDescription(await this.createOffer())
         } catch (error) {
           debug(error)
@@ -22,6 +24,7 @@ export default class Peer extends RTCPeerConnection {
     on(this, 'signalingstatechange', async () => {
       debug(this + ' signalingstate', this.signalingState)
       if (this.signalingState === 'have-remote-offer') {
+        // debug('SET LOCAL DESC')
         this.setLocalDescription(await this.createAnswer())
       }
     })
@@ -29,6 +32,12 @@ export default class Peer extends RTCPeerConnection {
     on(this, 'icegatheringstatechange', () => {
       debug(this + ' icegathering', this.iceGatheringState)
       if (this.iceGatheringState === 'complete') {
+        // debug(
+        //   'LOCAL DESC:',
+        //   this.localDescription.toJSON().type,
+        //   this.localDescription.toJSON().sdp
+        //     .split(/\r\n/g)
+        //     .filter(line => line.slice(0,2)==='a=').join('\n'))
         emit(this, 'localdescription', this.localDescription.toJSON())
       }
     })
@@ -58,7 +67,16 @@ export default class Peer extends RTCPeerConnection {
     stream.getTracks().map(track => this.addTrack(track, this.localStream))
 
     emit(this, 'localstream', this.localStream)
+
+    // the line below should not be necessary!
+    // but chrome for some unknown reason
+    // does not fire a negotiationneeded event
+    // after the first time you establish streams
+    // and actually the offer fails and we swallow the error!
+    // but all this mumbo jumbo cause a restart of the
+    // ice gathering so eventually all heals
     emit(this, 'negotiationneeded')
+
     debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
   }
 
