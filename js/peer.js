@@ -8,29 +8,29 @@ export default class Peer extends RTCPeerConnection {
 
     this.id = opts.id ?? randomId()
 
-    on(this, 'negotiationneeded', async () => {
-      debug(this + ' negotiationeeded', this.signalingState, this.iceGatheringState, this.iceConnectionState)
-      if (this.signalingState === 'have-local-offer'
-        || (this.signalingState === 'stable')) {
-        try {
-          // debug('SET LOCAL DESC')
-          await this.setLocalDescription(await this.createOffer())
-        } catch (error) {
-          debug(error)
-        }
-      }
-    })
+    // on(this, 'negotiationneeded', async () => {
+    //   debug(this + ' negotiationeeded', this.signalingState, this.iceGatheringState, this.iceConnectionState)
+    //   if (this.signalingState === 'have-local-offer'
+    //     || (this.signalingState === 'stable')) {
+    //     try {
+    //       // debug('SET LOCAL DESC')
+    //       await this.setLocalDescription(await this.createOffer())
+    //     } catch (error) {
+    //       debug(error)
+    //     }
+    //   }
+    // })
 
-    on(this, 'signalingstatechange', async () => {
-      debug(this + ' signalingstate', this.signalingState)
-      if (this.signalingState === 'have-remote-offer') {
-        // debug('SET LOCAL DESC')
-        this.setLocalDescription(await this.createAnswer())
-      }
-    })
+    // on(this, 'signalingstatechange', async () => {
+    //   debug(this + ' signalingstate', this.signalingState)
+    //   if (this.signalingState === 'have-remote-offer') {
+    //     // debug('SET LOCAL DESC')
+    //     this.setLocalDescription(await this.createAnswer())
+    //   }
+    // })
 
     on(this, 'icegatheringstatechange', () => {
-      debug(this + ' icegathering', this.iceGatheringState)
+      // debug(this + ' icegathering', this.iceGatheringState)
       if (this.iceGatheringState === 'complete') {
         // debug(
         //   'LOCAL DESC:',
@@ -38,6 +38,7 @@ export default class Peer extends RTCPeerConnection {
         //   this.localDescription.toJSON().sdp
         //     .split(/\r\n/g)
         //     .filter(line => line.slice(0,2)==='a=').join('\n'))
+        debug(this + ' send local description')
         emit(this, 'localdescription', this.localDescription.toJSON())
       }
     })
@@ -75,15 +76,15 @@ export default class Peer extends RTCPeerConnection {
     // and actually the offer fails and we swallow the error!
     // but all this mumbo jumbo cause a restart of the
     // ice gathering so eventually all heals
-    emit(this, 'negotiationneeded')
+    // emit(this, 'negotiationneeded')
 
-    debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
+    // debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
   }
 
-  removeMedia (media) {
-    once(this, 'negotiationneeded', () => {
-      emit(this, 'localdescription', this.localDescription.toJSON())
-    })
+  async removeMedia (media, isAnswer) {
+    // once(this, 'negotiationneeded', () => {
+    //   emit(this, 'localdescription', this.localDescription.toJSON())
+    // })
 
     media = Object.keys(media)
 
@@ -120,6 +121,12 @@ export default class Peer extends RTCPeerConnection {
 
     emit(this, 'localstream', this.localStream)
     emit(this, 'remotestream', this.remoteStream)
+
+    if (isAnswer) {
+      this.setLocalDescription(await this.createAnswer({ iceRestart: true }))
+    } else {
+      this.setLocalDescription(await this.createOffer({ iceRestart: true }))
+    }
   }
 
   toString () {

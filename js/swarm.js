@@ -36,7 +36,7 @@ export default class Swarm extends EventTarget {
       this.send(message)
     })
 
-    on(this, 'offer', (message, event) => {
+    on(this, 'offer', async (message, event) => {
       if (this.peers.find(peer => peer.id.split`.`.includes(message.from))) {
         return // not handled
       }
@@ -54,6 +54,7 @@ export default class Swarm extends EventTarget {
       once(peer, 'connected', () => emit(this, 'peer', peer))
       once(peer, 'datachannel', channel => this.createChannel(peer, channel))
       peer.setRemoteDescription(message)
+      peer.setLocalDescription(await peer.createAnswer())
     })
 
     on(this, 'answer', (message, event) => {
@@ -80,13 +81,6 @@ export default class Swarm extends EventTarget {
 
       const { peer } = channel
 
-      once(peer, 'localdescription', desc => channel.send(new Message({
-        ...desc,
-        media,
-        from: this.userId,
-        type: 'offer-media'
-      })))
-
       once(this, 'answer-media', (desc, event) => {
         event.preventDefault()
         peer.setRemoteDescription({ ...desc, type: 'answer' })
@@ -98,6 +92,14 @@ export default class Swarm extends EventTarget {
 
       const localStream = await navigator.mediaDevices.getUserMedia(media)
       peer.setLocalStream(localStream)
+      peer.setLocalDescription(await peer.createOffer({ iceRestart: true }))
+
+      once(peer, 'localdescription', desc => channel.send(new Message({
+        ...desc,
+        media,
+        from: this.userId,
+        type: 'offer-media'
+      })))
     })
 
     on(this, 'offer-media', async ({ channel, media, ...desc }, event) => {
@@ -105,19 +107,21 @@ export default class Swarm extends EventTarget {
 
       const { peer } = channel
 
+      once(peer, 'remotestream', remoteStream => {
+        debug(peer + ' receive stream')
+      })
+
+      peer.setRemoteDescription({ ...desc, type: 'offer' })
+
+      const localStream = await navigator.mediaDevices.getUserMedia(media)
+      peer.setLocalStream(localStream)
+      peer.setLocalDescription(await peer.createAnswer({ iceRestart: true }))
+
       once(peer, 'localdescription', desc => channel.send(new Message({
         ...desc,
         from: this.userId,
         type: 'answer-media'
       })))
-
-      once(peer, 'remotestream', remoteStream => {
-        debug(peer + ' receive stream')
-      })
-
-      const localStream = await navigator.mediaDevices.getUserMedia(media)
-      peer.setRemoteDescription({ ...desc, type: 'offer' })
-      peer.setLocalStream(localStream)
     })
 
     on(this, 'offer-quit-media', ({ channel, media, ...desc }, event) => {
@@ -125,23 +129,23 @@ export default class Swarm extends EventTarget {
 
       const { peer } = channel
 
+      once(peer, 'signalingstatechange', () => {
+        once(peer, 'signalingstatechange', () => {
+          emit(peer, 'endedmedia', media)
+        })
+
+        peer.removeMedia(media, true)
+      })
+
+      peer.setRemoteDescription({ ...desc, type: 'offer' })
+      // debug.color('#f00', 'after this should remove media')
+
       once(peer, 'localdescription', desc => channel.send(new Message({
         ...desc,
         from: this.userId,
         type: 'answer-quit-media',
         media
       })))
-
-      once(peer, 'signalingstatechange', () => {
-        once(peer, 'signalingstatechange', () => {
-          emit(peer, 'endedmedia', media)
-        })
-
-        peer.removeMedia(media)
-      })
-
-      peer.setRemoteDescription({ ...desc, type: 'offer' })
-      debug.color('#f00', 'after this should remove media')
     })
 
     on(this, 'answer-quit-media', ({ channel, media, ...desc }, event) => {
@@ -193,7 +197,7 @@ export default class Swarm extends EventTarget {
     }
   }
 
-  discover (channel = this.http) {
+  async discover (channel = this.http) {
     const peer = new Peer()
     peer.userId = this.userId
     this.peers.push(peer)
@@ -205,6 +209,7 @@ export default class Swarm extends EventTarget {
     })))
     once(peer, 'connected', () => emit(this, 'peer', peer))
     this.createChannel(peer)
+    peer.setLocalDescription(await peer.createOffer())
   }
 
   get connectedPeers () {

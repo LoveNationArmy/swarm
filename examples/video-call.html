@@ -64,6 +64,7 @@ on(swarm, 'dataopen', channel => {
   on(videoOff, 'click', () => {
     once(peer, 'localdescription', desc => swarm.broadcast({
       ...desc,
+      to: peer.id,
       type: 'offer-quit-media',
       media: { video: true }
     }))
@@ -73,6 +74,7 @@ on(swarm, 'dataopen', channel => {
   on(audioOff, 'click', () => {
     once(peer, 'localdescription', desc => swarm.broadcast({
       ...desc,
+      to: peer.id,
       type: 'offer-quit-media',
       media: { audio: true }
     }))
@@ -81,12 +83,12 @@ on(swarm, 'dataopen', channel => {
 
   on(videoOn, 'click', () => {
     const { video } = media
-    swarm.broadcast({ type: 'request-media', media: { video }})
+    swarm.broadcast({ type: 'request-media', to: peer.id, media: { video }})
   })
 
   on(audioOn, 'click', () => {
     const { audio } = media
-    swarm.broadcast({ type: 'request-media', media: { audio }})
+    swarm.broadcast({ type: 'request-media', to: peer.id, media: { audio }})
   })
 })
 
