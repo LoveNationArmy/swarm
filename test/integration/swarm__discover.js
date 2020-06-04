@@ -1,6 +1,8 @@
-import debug from '../../js/lib/debug.js'
+import Debug from '../../js/lib/debug.js'
 import { emit, once } from '../../js/lib/events.js'
 import Swarm from '../../js/swarm.js'
+
+const debug = Debug.origin('swarm__discover')
 
 describe('swarm.discover()', function () {
   this.timeout(10000)
@@ -28,11 +30,11 @@ describe('swarm.discover()', function () {
         expect(bob.connectedPeers.length).to.equal(1) // bob connected to alice
 
         expect(alice.connectedPeers[0].id)
-          .to.equal(bob.connectedPeers[0].id)
+          .to.equal(bob.connectedPeers[0].remote.id)
 
         const opposite = { offer: 'answer', answer: 'offer' }
-        expect(alice.connectedPeers[0].localDescription.type)
-          .to.equal(opposite[bob.connectedPeers[0].localDescription.type])
+        expect(alice.connectedPeers[0].peer.localDescription.type)
+          .to.equal(opposite[bob.connectedPeers[0].peer.localDescription.type])
 
         alice.http.close() // make alice only p2p
 
@@ -61,11 +63,11 @@ describe('swarm.discover()', function () {
         expect(bob.connectedPeers.length).to.equal(2) // bob connected to both alice and charlie
 
         expect(bob.connectedPeers[1].id)
-          .to.equal(charlie.connectedPeers[0].id)
+          .to.equal(charlie.connectedPeers[0].remote.id)
 
         const opposite = { offer: 'answer', answer: 'offer' }
-        expect(bob.connectedPeers[1].localDescription.type)
-          .to.equal(opposite[charlie.connectedPeers[0].localDescription.type])
+        expect(bob.connectedPeers[1].peer.localDescription.type)
+          .to.equal(opposite[charlie.connectedPeers[0].peer.localDescription.type])
 
         done()
       }
@@ -87,11 +89,11 @@ describe('swarm.discover()', function () {
         expect(charlie.connectedPeers.length).to.equal(2) // charlie connected to alice
 
         expect(alice.connectedPeers[1].id)
-          .to.equal(charlie.connectedPeers[1].id)
+          .to.equal(charlie.connectedPeers[1].remote.id)
 
         const opposite = { offer: 'answer', answer: 'offer' }
-        expect(alice.connectedPeers[1].localDescription.type)
-          .to.equal(opposite[charlie.connectedPeers[1].localDescription.type])
+        expect(alice.connectedPeers[1].peer.localDescription.type)
+          .to.equal(opposite[charlie.connectedPeers[1].peer.localDescription.type])
 
         done()
       }

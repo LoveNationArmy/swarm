@@ -1,7 +1,9 @@
-import debug from '../../js/lib/debug.js'
+import Debug from '../../js/lib/debug.js'
 import { emit, on, once, off } from '../../js/lib/events.js'
 import Message from '../../js/message.js'
 import Swarm from '../../js/swarm.js'
+
+const debug = Debug.origin('swarm__mediastreams')
 
 describe('swarm media streams', function () {
   this.timeout(15000)
@@ -12,22 +14,18 @@ describe('swarm media streams', function () {
 
   const media = {
     video: {
-      video: {
-        resizeMode: 'crop-and-scale',
-        facingMode: 'user',
-        frameRate: 24,
-        width: 176,
-        height: 144
-      }
+      resizeMode: 'crop-and-scale',
+      facingMode: 'user',
+      frameRate: 24,
+      width: 176,
+      height: 144
     },
     audio: {
-      audio: {
-        autoGainControl: true,
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 11050,
-      }
+      autoGainControl: true,
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      sampleRate: 11050,
     }
   }
 
@@ -50,11 +48,11 @@ describe('swarm media streams', function () {
         expect(bob.connectedPeers.length).to.equal(1) // bob connected to alice
 
         expect(alice.connectedPeers[0].id)
-          .to.equal(bob.connectedPeers[0].id)
+          .to.equal(bob.connectedPeers[0].remote.id)
 
         const opposite = { offer: 'answer', answer: 'offer' }
-        expect(alice.connectedPeers[0].localDescription.type)
-          .to.equal(opposite[bob.connectedPeers[0].localDescription.type])
+        expect(alice.connectedPeers[0].peer.localDescription.type)
+          .to.equal(opposite[bob.connectedPeers[0].peer.localDescription.type])
 
         alicePeer = alice.connectedPeers[0]
         bobPeer = bob.connectedPeers[0]
@@ -66,8 +64,8 @@ describe('swarm media streams', function () {
     alice.discover()
     bob.discover()
 
-    once(alice, 'dataopen', next)
-    once(bob, 'dataopen', next)
+    once(alice, 'peer', next)
+    once(bob, 'peer', next)
   })
 
   for (let times = 2; times--;) {
@@ -95,7 +93,7 @@ describe('swarm media streams', function () {
       once(alicePeer, 'remotestream', next)
 
       const { video } = media
-      alice.broadcast({ type: 'request-media', media: { video } })
+      alicePeer.addMedia({ video })
     })
 
     it('bob requests audio stream from alice and establish audio both ways, added to current streams', done => {
@@ -122,7 +120,7 @@ describe('swarm media streams', function () {
       on(alicePeer, 'remotestream', next)
 
       const { audio } = media
-      bob.broadcast({ type: 'request-media', media: { audio } })
+      bobPeer.addMedia({ audio })
     })
 
     it('alice sends quit video media request to bob, both end', done => {
@@ -148,12 +146,12 @@ describe('swarm media streams', function () {
       once(alicePeer, 'endedmedia', next)
       once(bobPeer, 'endedmedia', next)
 
-      once(alicePeer, 'localdescription', desc => alice.send(new Message({
-        ...desc,
-        from: 'alice',
-        type: 'offer-quit-media',
-        media: { video: true }
-      })))
+      // once(alicePeer, 'localdescription', desc => alice.send(new Message({
+      //   ...desc,
+      //   from: 'alice',
+      //   type: 'offer-quit-media',
+      //   media: { video: true }
+      // })))
 
       alicePeer.removeMedia({ video: true })
     })
@@ -176,12 +174,12 @@ describe('swarm media streams', function () {
       once(alicePeer, 'endedmedia', next)
       once(bobPeer, 'endedmedia', next)
 
-      once(alicePeer, 'localdescription', desc => alice.send(new Message({
-        ...desc,
-        from: 'alice',
-        type: 'offer-quit-media',
-        media: { audio: true }
-      })))
+      // once(alicePeer, 'localdescription', desc => alice.send(new Message({
+      //   ...desc,
+      //   from: 'alice',
+      //   type: 'offer-quit-media',
+      //   media: { audio: true }
+      // })))
 
       alicePeer.removeMedia({ audio: true })
     })

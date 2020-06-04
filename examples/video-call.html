@@ -1,10 +1,10 @@
-<video id="localVideo" autoplay muted controls></video>
-<video id="remoteVideo" autoplay muted controls></video>
-<br>
 <button id="videoOn" disabled>turn video on</button>
 <button id="videoOff" disabled style="display: none">turn video off</button>
 <button id="audioOn" disabled>turn audio on</button>
 <button id="audioOff" disabled style="display: none">turn audio off</button>
+<br>
+<video id="localVideo" autoplay muted controls></video>
+<video id="remoteVideo" autoplay muted controls></video>
 
 <script type="module">
 window.DEBUG = true
@@ -34,9 +34,7 @@ const swarm = new Swarm({ origin: 'http://localhost:4334' })
 
 swarm.discover()
 
-on(swarm, 'dataopen', channel => {
-  const { peer } = channel
-
+on(swarm, 'peer', peer => {
   ;[...document.querySelectorAll('button')].map(button => button.disabled = false)
 
   on(peer, 'localstream', localStream => {
@@ -62,33 +60,21 @@ on(swarm, 'dataopen', channel => {
   })
 
   on(videoOff, 'click', () => {
-    once(peer, 'localdescription', desc => swarm.broadcast({
-      ...desc,
-      to: peer.id,
-      type: 'offer-quit-media',
-      media: { video: true }
-    }))
     peer.removeMedia({ video: true })
   })
 
   on(audioOff, 'click', () => {
-    once(peer, 'localdescription', desc => swarm.broadcast({
-      ...desc,
-      to: peer.id,
-      type: 'offer-quit-media',
-      media: { audio: true }
-    }))
     peer.removeMedia({ audio: true })
   })
 
   on(videoOn, 'click', () => {
     const { video } = media
-    swarm.broadcast({ type: 'request-media', to: peer.id, media: { video }})
+    peer.addMedia({ video })
   })
 
   on(audioOn, 'click', () => {
     const { audio } = media
-    swarm.broadcast({ type: 'request-media', to: peer.id, media: { audio }})
+    peer.addMedia({ audio })
   })
 })
 

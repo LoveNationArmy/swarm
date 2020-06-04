@@ -1,97 +1,97 @@
 import debug from './lib/debug.js'
-import { emit, on, once } from './lib/events.js'
+import { emit, on, once, off } from './lib/events.js'
 import randomId from './lib/random-id.js'
+import Message from './message.js'
 
-export default class Peer extends RTCPeerConnection {
+let channelId = 0
+
+export default class Peer extends EventTarget {
   constructor (opts = {}) {
-    super(opts)
-
+    super()
     this.id = opts.id ?? randomId()
+    this.debug = debug.origin(this.id)
+    this.media = {}
+    this.data = { in: new Set, out: new Set }
+    this.peer = new RTCPeerConnection(opts)
+    this.channel = this.peer.createDataChannel('data', { negotiated: true, id: opts.channelId ?? channelId++ })
 
-    // on(this, 'negotiationneeded', async () => {
-    //   debug(this + ' negotiationeeded', this.signalingState, this.iceGatheringState, this.iceConnectionState)
-    //   if (this.signalingState === 'have-local-offer'
-    //     || (this.signalingState === 'stable')) {
-    //     try {
-    //       // debug('SET LOCAL DESC')
-    //       await this.setLocalDescription(await this.createOffer())
-    //     } catch (error) {
-    //       debug(error)
-    //     }
-    //   }
-    // })
-
-    // on(this, 'signalingstatechange', async () => {
-    //   debug(this + ' signalingstate', this.signalingState)
-    //   if (this.signalingState === 'have-remote-offer') {
-    //     // debug('SET LOCAL DESC')
-    //     this.setLocalDescription(await this.createAnswer())
-    //   }
-    // })
-
-    on(this, 'icegatheringstatechange', () => {
-      // debug(this + ' icegathering', this.iceGatheringState)
-      if (this.iceGatheringState === 'complete') {
-        // debug(
-        //   'LOCAL DESC:',
-        //   this.localDescription.toJSON().type,
-        //   this.localDescription.toJSON().sdp
-        //     .split(/\r\n/g)
-        //     .filter(line => line.slice(0,2)==='a=').join('\n'))
-        debug(this + ' send local description')
-        emit(this, 'localdescription', this.localDescription.toJSON())
-      }
-    })
-
-    on(this, 'connectionstatechange', () => emit(this, this.connectionState))
-
-    on(this, 'track', event => {
+    on(this.peer, 'track', event => {
       // debug(this + ' add remote stream', stream?.getTracks()[0].kind)
       if (this.remoteStream) {
         this.remoteStream.addTrack(event.track)
       } else {
         this.remoteStream = event.streams[0]
       }
-
       emit(this, 'remotestream', this.remoteStream)
     })
+
+    on(this.channel, 'message', async message => {
+      message = new Message(message)
+      this.debug('receive', Object.keys(message))
+      if (message.media) {
+        const stream = await navigator.mediaDevices.getUserMedia(message.media)
+        this.media = { ...this.media, ...message.media }
+        this.peer.setRemoteDescription(message)
+        this.setLocalStream(stream)
+        const desc = this.create('answer')
+        this.channel.send(new Message({
+          id: message.id,
+          rpc: message.rpc,
+          ...(await desc)
+        }))
+        return
+      }
+      if (message.removeMedia) {
+        this.debug('is remove media')
+        this.removeMedia(message.removeMedia, message)
+        return
+      }
+      emit(this, 'message', message)
+    })
+    once(this.channel, 'open', () => emit(this, 'open'))
+    once(this.channel, 'close', () => emit(this, 'close'))
   }
 
-  setLocalStream (stream) {
-    debug(this + ' add local stream', stream.getTracks())
-    if (this.localStream) {
-      stream.getTracks().map(track => this.localStream.addTrack(track))
-    } else {
-      this.localStream = stream
-    }
-
-    stream.getTracks().map(track => this.addTrack(track, this.localStream))
-
-    emit(this, 'localstream', this.localStream)
-
-    // the line below should not be necessary!
-    // but chrome for some unknown reason
-    // does not fire a negotiationneeded event
-    // after the first time you establish streams
-    // and actually the offer fails and we swallow the error!
-    // but all this mumbo jumbo cause a restart of the
-    // ice gathering so eventually all heals
-    // emit(this, 'negotiationneeded')
-
-    // debug(this.signalingState, this.iceGatheringState, this.iceConnectionState)
+  send (message) {
+    this.channel.send(message)
   }
 
-  async removeMedia (media, isAnswer) {
+  close () {
+    this.peer.close()
+  }
+
+  get connected () {
+    return this.channel.readyState === 'open'
+  }
+
+  async create (type) {
+    this.debug('creating', type)
+    const ld = this.getLocalDescription()
+    const desc = await this.peer[type === 'offer' ? 'createOffer' : 'createAnswer']({ iceRestart: true })
+    this.peer.setLocalDescription(desc)
+    return ld
+  }
+
+  async addMedia (media, type = 'offer') {
+    const stream = await navigator.mediaDevices.getUserMedia(media)
+    this.media = { ...this.media, ...media }
+    this.setLocalStream(stream)
+    const desc = await this.create('offer')
+    const answer = await this.rpc({ media, ...desc })
+    this.peer.setRemoteDescription(answer)
+  }
+
+  async removeMedia (media, offer) {
     // once(this, 'negotiationneeded', () => {
     //   emit(this, 'localdescription', this.localDescription.toJSON())
     // })
-
+    const removeMedia = media
     media = Object.keys(media)
 
     // this removes the tracks from the rtc sender stream
-    this.getSenders()
+    this.peer.getSenders()
       .filter(sender => media.includes(sender?.track?.kind))
-      .map(sender => this.removeTrack(sender, this.localStream))
+      .map(sender => this.peer.removeTrack(sender, this.localStream))
 
     // these stop and remove the tracks from the dom media streams
     if (this.localStream) this.localStream
@@ -122,29 +122,67 @@ export default class Peer extends RTCPeerConnection {
     emit(this, 'localstream', this.localStream)
     emit(this, 'remotestream', this.remoteStream)
 
-    if (isAnswer) {
-      this.setLocalDescription(await this.createAnswer({ iceRestart: true }))
+    if (!offer) {
+      const desc = await this.create('offer')
+      const answer = await this.rpc({ removeMedia, ...desc })
+      this.peer.setRemoteDescription(answer)
     } else {
-      this.setLocalDescription(await this.createOffer({ iceRestart: true }))
+      this.peer.setRemoteDescription(offer)
+      const desc = this.create('answer')
+      this.channel.send(new Message({
+        id: offer.id,
+        rpc: offer.rpc,
+        ...(await desc)
+      }))
     }
+
+    emit(this, 'endedmedia')
+  }
+
+  setLocalStream (stream) {
+    this.debug('add local stream', stream.getTracks())
+    if (this.localStream) {
+      stream.getTracks().map(track => this.localStream.addTrack(track))
+    } else {
+      this.localStream = stream
+    }
+    stream.getTracks().map(track => this.peer.addTrack(track, this.localStream))
+    emit(this, 'localstream', this.localStream)
+  }
+
+  rpc (message) {
+    message = new Message(message)
+    message.rpc = message.id
+    this.channel.send(message)
+    this.debug('send rpc', Object.keys(message))
+    return new Promise(resolve => {
+      const listener = on(this.channel, 'message', remoteMessage => {
+        remoteMessage = new Message(remoteMessage)
+        if (remoteMessage.rpc === message.rpc) {
+          off(listener)
+          resolve(remoteMessage)
+        }
+      })
+    })
+  }
+
+  setRemoteDescription (desc) {
+    this.remote = { userId: desc.from, id: desc.peerId }
+    this.peer.setRemoteDescription(desc)
+  }
+
+  getLocalDescription () {
+    return new Promise(resolve => {
+      const listener = on(this.peer, 'icegatheringstatechange', () => {
+        if (this.peer.iceGatheringState === 'complete') {
+          off(listener)
+          resolve(this.peer.localDescription.toJSON())
+        }
+      })
+    })
   }
 
   toString () {
-    return `[${this.userId} ${this.id} ${this.localDescription?.type ?? '-'} ${this.connectionState}]`
+    return `[${this.id} ${this.remote?.userId??'-'} ${this.channel.readyState}]`
   }
 }
-
-/*
-
-smallButton.addEventListener('click', () => {
-  localStream.getVideoTracks()[0].applyConstraints({width: {exact: 180}});
-});
-const vgaButton = document.getElementById('size-vga');
-vgaButton.addEventListener('click', () => {
-  localStream.getVideoTracks()[0].applyConstraints({width: {exact: 640}});
-});
-const hdButton = document.getElementById('size-hd');
-hdButton.addEventListener('click', () => {
-  localStream.getVideoTracks()[0].applyConstraints({width: {exact: 1024}});
-});
-*/
