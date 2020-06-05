@@ -64,7 +64,7 @@ export default class Swarm extends EventTarget {
     this.listen(this.http)
 
     on(this, 'peer', peer => {
-      once(peer, 'close', () => this.peers.delete(peer))
+      clearTimeout(peer.timeout)
     })
   }
 
@@ -104,6 +104,11 @@ export default class Swarm extends EventTarget {
   async createPeer ({ channelId } = {}) {
     const peer = new Peer({ channelId })
     once(peer, 'open', () => emit(this, 'peer', peer))
+    once(peer, 'close', () => this.peers.delete(peer))
+    peer.timeout = setTimeout(() => {
+      this.debug('timed out', peer)
+      emit(peer, 'close')
+    }, 5 * 1000)
     this.peers.add(peer)
     this.listen(peer)
     return peer

@@ -12,9 +12,8 @@ export default class Peer extends EventTarget {
     this.debug = debug.origin(this.id)
     this.media = {}
     this.data = { in: new Set, out: new Set }
-    this.peer = new RTCPeerConnection(opts)
+    this.peer = new RTCPeerConnection({ sdpSemantics: 'unified-plan', ...opts })
     this.channel = this.peer.createDataChannel('data', { negotiated: true, id: opts.channelId ?? channelId++ })
-
     on(this.peer, 'track', event => {
       // debug(this + ' add remote stream', stream?.getTracks()[0].kind)
       if (this.remoteStream) {
@@ -33,16 +32,15 @@ export default class Peer extends EventTarget {
         this.media = { ...this.media, ...message.media }
         this.peer.setRemoteDescription(message)
         this.setLocalStream(stream)
-        const desc = this.create('answer')
+        const desc = await this.create('answer')
         this.channel.send(new Message({
           id: message.id,
           rpc: message.rpc,
-          ...(await desc)
+          ...desc
         }))
         return
       }
       if (message.removeMedia) {
-        this.debug('is remove media')
         this.removeMedia(message.removeMedia, message)
         return
       }
@@ -128,11 +126,11 @@ export default class Peer extends EventTarget {
       this.peer.setRemoteDescription(answer)
     } else {
       this.peer.setRemoteDescription(offer)
-      const desc = this.create('answer')
+      const desc = await this.create('answer')
       this.channel.send(new Message({
         id: offer.id,
         rpc: offer.rpc,
-        ...(await desc)
+        ...desc
       }))
     }
 
@@ -140,7 +138,6 @@ export default class Peer extends EventTarget {
   }
 
   setLocalStream (stream) {
-    this.debug('add local stream', stream.getTracks())
     if (this.localStream) {
       stream.getTracks().map(track => this.localStream.addTrack(track))
     } else {
@@ -158,6 +155,7 @@ export default class Peer extends EventTarget {
     return new Promise(resolve => {
       const listener = on(this.channel, 'message', remoteMessage => {
         remoteMessage = new Message(remoteMessage)
+        this.debug('receive rpc', Object.keys(message))
         if (remoteMessage.rpc === message.rpc) {
           off(listener)
           resolve(remoteMessage)
@@ -173,12 +171,15 @@ export default class Peer extends EventTarget {
 
   getLocalDescription () {
     return new Promise(resolve => {
+      const complete = () => {
+        off(listener)
+        clearTimeout(timeout)
+        resolve(this.peer.localDescription.toJSON())
+      }
       const listener = on(this.peer, 'icegatheringstatechange', () => {
-        if (this.peer.iceGatheringState === 'complete') {
-          off(listener)
-          resolve(this.peer.localDescription.toJSON())
-        }
+        if (this.peer.iceGatheringState === 'complete') complete()
       })
+      const timeout = setTimeout(complete, 5 * 1000)
     })
   }
 

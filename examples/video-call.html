@@ -30,7 +30,7 @@ const media = {
   }
 }
 
-const swarm = new Swarm({ origin: 'http://localhost:4334' })
+const swarm = window.swarm = new Swarm({ origin: 'http://localhost:4334' })
 
 swarm.discover()
 
